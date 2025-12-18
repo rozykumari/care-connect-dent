@@ -14,6 +14,90 @@ export type Database = {
   }
   public: {
     Tables: {
+      patient_allergies: {
+        Row: {
+          action_to_take: string | null
+          allergen: string
+          created_at: string
+          id: string
+          severity: string
+          user_id: string
+        }
+        Insert: {
+          action_to_take?: string | null
+          allergen: string
+          created_at?: string
+          id?: string
+          severity?: string
+          user_id: string
+        }
+        Update: {
+          action_to_take?: string | null
+          allergen?: string
+          created_at?: string
+          id?: string
+          severity?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
+      patient_prescriptions: {
+        Row: {
+          created_at: string
+          dose: string
+          id: string
+          name: string
+          time: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          dose: string
+          id?: string
+          name: string
+          time: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          dose?: string
+          id?: string
+          name?: string
+          time?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
+      patient_procedures: {
+        Row: {
+          created_at: string
+          date: string | null
+          description: string | null
+          id: string
+          name: string
+          status: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          date?: string | null
+          description?: string | null
+          id?: string
+          name: string
+          status?: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          date?: string | null
+          description?: string | null
+          id?: string
+          name?: string
+          status?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
       profiles: {
         Row: {
           created_at: string

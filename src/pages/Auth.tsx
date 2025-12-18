@@ -36,7 +36,7 @@ const Auth = () => {
 
   useEffect(() => {
     if (!loading && user) {
-      navigate('/');
+      navigate('/profile');
     }
   }, [user, loading, navigate]);
 
@@ -68,7 +68,7 @@ const Auth = () => {
       }
     } else {
       toast.success('Welcome back!');
-      navigate('/');
+      navigate('/profile');
     }
   };
 
@@ -100,7 +100,7 @@ const Auth = () => {
       }
     } else {
       toast.success('Account created successfully!');
-      navigate('/');
+      navigate('/profile');
     }
   };
 

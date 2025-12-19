@@ -5,6 +5,7 @@ import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { BrowserRouter, Routes, Route } from "react-router-dom";
 import { AuthProvider } from "@/hooks/useAuth";
 import ProtectedRoute from "@/components/ProtectedRoute";
+import DoctorRoute from "@/components/DoctorRoute";
 import Dashboard from "./pages/Dashboard";
 import Appointments from "./pages/Appointments";
 import Patients from "./pages/Patients";
@@ -16,6 +17,7 @@ import Inventory from "./pages/Inventory";
 import Reports from "./pages/Reports";
 import Auth from "./pages/Auth";
 import PatientProfile from "./pages/PatientProfile";
+import DoctorManagement from "./pages/DoctorManagement";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
@@ -30,6 +32,7 @@ const App = () => (
           <Routes>
             <Route path="/auth" element={<Auth />} />
             <Route path="/profile" element={<ProtectedRoute><PatientProfile /></ProtectedRoute>} />
+            <Route path="/doctor" element={<DoctorRoute><DoctorManagement /></DoctorRoute>} />
             <Route path="/" element={<ProtectedRoute><Dashboard /></ProtectedRoute>} />
             <Route path="/appointments" element={<ProtectedRoute><Appointments /></ProtectedRoute>} />
             <Route path="/patients" element={<ProtectedRoute><Patients /></ProtectedRoute>} />

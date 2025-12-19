@@ -12,36 +12,48 @@ import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Badge } from '@/components/ui/badge';
-import { Plus, Trash2, LogOut, User } from 'lucide-react';
+import { Plus, Trash2, LogOut, Stethoscope } from 'lucide-react';
 import { toast } from 'sonner';
+
+interface Patient {
+  user_id: string;
+  full_name: string | null;
+}
 
 interface Prescription {
   id: string;
+  user_id: string;
   name: string;
   dose: string;
   time_morning: boolean;
   time_noon: boolean;
   time_evening: boolean;
   time_sos: boolean;
+  patient_name?: string;
 }
 
 interface Procedure {
   id: string;
+  user_id: string;
   name: string;
   description: string | null;
   status: string;
   date: string | null;
+  patient_name?: string;
 }
 
 interface Allergy {
   id: string;
+  user_id: string;
   allergen: string;
   severity: string;
   action_to_take: string | null;
+  patient_name?: string;
 }
 
-const PatientProfile = () => {
-  const { user, signOut } = useAuth();
+const DoctorManagement = () => {
+  const { signOut } = useAuth();
+  const [patients, setPatients] = useState<Patient[]>([]);
   const [prescriptions, setPrescriptions] = useState<Prescription[]>([]);
   const [procedures, setProcedures] = useState<Procedure[]>([]);
   const [allergies, setAllergies] = useState<Allergy[]>([]);
@@ -49,6 +61,7 @@ const PatientProfile = () => {
 
   // Form states
   const [prescriptionForm, setPrescriptionForm] = useState({
+    patient_id: '',
     name: '',
     dose: '',
     time_morning: false,
@@ -56,12 +69,16 @@ const PatientProfile = () => {
     time_evening: false,
     time_sos: false,
   });
-  const [procedureForm, setProcedureForm] = useState({ name: '', description: '', status: 'planned', date: '' });
-  const [allergyForm, setAllergyForm] = useState({ allergen: '', severity: 'mild', action_to_take: '' });
-  
+  const [procedureForm, setProcedureForm] = useState({
+    patient_id: '',
+    name: '',
+    description: '',
+    status: 'planned',
+    date: '',
+  });
+
   const [prescriptionDialogOpen, setPrescriptionDialogOpen] = useState(false);
   const [procedureDialogOpen, setProcedureDialogOpen] = useState(false);
-  const [allergyDialogOpen, setAllergyDialogOpen] = useState(false);
 
   useEffect(() => {
     fetchData();
@@ -70,15 +87,41 @@ const PatientProfile = () => {
   const fetchData = async () => {
     setLoading(true);
     try {
+      // Fetch patients (profiles)
+      const { data: patientsData } = await supabase
+        .from('profiles')
+        .select('user_id, full_name')
+        .order('full_name');
+      
+      const patientMap = new Map<string, string>();
+      patientsData?.forEach(p => patientMap.set(p.user_id, p.full_name || 'Unknown'));
+      setPatients(patientsData || []);
+
+      // Fetch all prescriptions, procedures, allergies
       const [prescRes, procRes, allergyRes] = await Promise.all([
         supabase.from('patient_prescriptions').select('*').order('created_at', { ascending: false }),
         supabase.from('patient_procedures').select('*').order('created_at', { ascending: false }),
         supabase.from('patient_allergies').select('*').order('created_at', { ascending: false }),
       ]);
 
-      if (prescRes.data) setPrescriptions(prescRes.data);
-      if (procRes.data) setProcedures(procRes.data);
-      if (allergyRes.data) setAllergies(allergyRes.data);
+      if (prescRes.data) {
+        setPrescriptions(prescRes.data.map(p => ({
+          ...p,
+          patient_name: patientMap.get(p.user_id) || 'Unknown',
+        })));
+      }
+      if (procRes.data) {
+        setProcedures(procRes.data.map(p => ({
+          ...p,
+          patient_name: patientMap.get(p.user_id) || 'Unknown',
+        })));
+      }
+      if (allergyRes.data) {
+        setAllergies(allergyRes.data.map(a => ({
+          ...a,
+          patient_name: patientMap.get(a.user_id) || 'Unknown',
+        })));
+      }
     } catch (error) {
       toast.error('Failed to fetch data');
     } finally {
@@ -87,16 +130,17 @@ const PatientProfile = () => {
   };
 
   const addPrescription = async () => {
-    if (!prescriptionForm.name || !prescriptionForm.dose) {
-      toast.error('Please fill all fields');
+    if (!prescriptionForm.patient_id || !prescriptionForm.name || !prescriptionForm.dose) {
+      toast.error('Please select a patient and fill required fields');
       return;
     }
     if (!prescriptionForm.time_morning && !prescriptionForm.time_noon && !prescriptionForm.time_evening && !prescriptionForm.time_sos) {
       toast.error('Please select at least one timing');
       return;
     }
+
     const { error } = await supabase.from('patient_prescriptions').insert({
-      user_id: user?.id,
+      user_id: prescriptionForm.patient_id,
       name: prescriptionForm.name,
       dose: prescriptionForm.dose,
       time_morning: prescriptionForm.time_morning,
@@ -104,11 +148,13 @@ const PatientProfile = () => {
       time_evening: prescriptionForm.time_evening,
       time_sos: prescriptionForm.time_sos,
     });
+
     if (error) {
       toast.error('Failed to add prescription');
     } else {
       toast.success('Prescription added');
       setPrescriptionForm({
+        patient_id: '',
         name: '',
         dose: '',
         time_morning: false,
@@ -122,44 +168,31 @@ const PatientProfile = () => {
   };
 
   const addProcedure = async () => {
-    if (!procedureForm.name) {
-      toast.error('Please enter procedure name');
+    if (!procedureForm.patient_id || !procedureForm.name) {
+      toast.error('Please select a patient and enter procedure name');
       return;
     }
+
     const { error } = await supabase.from('patient_procedures').insert({
-      user_id: user?.id,
+      user_id: procedureForm.patient_id,
       name: procedureForm.name,
       description: procedureForm.description || null,
       status: procedureForm.status,
       date: procedureForm.date || null,
     });
+
     if (error) {
       toast.error('Failed to add procedure');
     } else {
       toast.success('Procedure added');
-      setProcedureForm({ name: '', description: '', status: 'planned', date: '' });
+      setProcedureForm({
+        patient_id: '',
+        name: '',
+        description: '',
+        status: 'planned',
+        date: '',
+      });
       setProcedureDialogOpen(false);
-      fetchData();
-    }
-  };
-
-  const addAllergy = async () => {
-    if (!allergyForm.allergen) {
-      toast.error('Please enter allergen');
-      return;
-    }
-    const { error } = await supabase.from('patient_allergies').insert({
-      user_id: user?.id,
-      allergen: allergyForm.allergen,
-      severity: allergyForm.severity,
-      action_to_take: allergyForm.action_to_take || null,
-    });
-    if (error) {
-      toast.error('Failed to add allergy');
-    } else {
-      toast.success('Allergy added');
-      setAllergyForm({ allergen: '', severity: 'mild', action_to_take: '' });
-      setAllergyDialogOpen(false);
       fetchData();
     }
   };
@@ -172,12 +205,6 @@ const PatientProfile = () => {
 
   const deleteProcedure = async (id: string) => {
     const { error } = await supabase.from('patient_procedures').delete().eq('id', id);
-    if (error) toast.error('Failed to delete');
-    else fetchData();
-  };
-
-  const deleteAllergy = async (id: string) => {
-    const { error } = await supabase.from('patient_allergies').delete().eq('id', id);
     if (error) toast.error('Failed to delete');
     else fetchData();
   };
@@ -204,10 +231,10 @@ const PatientProfile = () => {
       <header className="border-b bg-card">
         <div className="container mx-auto flex items-center justify-between px-4 py-4">
           <div className="flex items-center gap-3">
-            <User className="h-8 w-8 text-primary" />
+            <Stethoscope className="h-8 w-8 text-primary" />
             <div>
-              <h1 className="text-xl font-bold">Patient Profile</h1>
-              <p className="text-sm text-muted-foreground">{user?.email}</p>
+              <h1 className="text-xl font-bold">Doctor Management</h1>
+              <p className="text-sm text-muted-foreground">Manage patient prescriptions & procedures</p>
             </div>
           </div>
           <Button variant="outline" onClick={signOut}>
@@ -222,13 +249,13 @@ const PatientProfile = () => {
           <TabsList className="grid w-full grid-cols-3">
             <TabsTrigger value="prescriptions">Prescriptions</TabsTrigger>
             <TabsTrigger value="procedures">Procedures</TabsTrigger>
-            <TabsTrigger value="allergies">Allergies</TabsTrigger>
+            <TabsTrigger value="allergies">Allergies (View Only)</TabsTrigger>
           </TabsList>
 
           <TabsContent value="prescriptions">
             <Card>
               <CardHeader className="flex flex-row items-center justify-between">
-                <CardTitle>My Prescriptions</CardTitle>
+                <CardTitle>All Prescriptions</CardTitle>
                 <Dialog open={prescriptionDialogOpen} onOpenChange={setPrescriptionDialogOpen}>
                   <DialogTrigger asChild>
                     <Button><Plus className="mr-2 h-4 w-4" />Add Prescription</Button>
@@ -238,6 +265,19 @@ const PatientProfile = () => {
                       <DialogTitle>Add Prescription</DialogTitle>
                     </DialogHeader>
                     <div className="space-y-4">
+                      <div>
+                        <Label>Patient</Label>
+                        <Select value={prescriptionForm.patient_id} onValueChange={(v) => setPrescriptionForm({ ...prescriptionForm, patient_id: v })}>
+                          <SelectTrigger><SelectValue placeholder="Select patient" /></SelectTrigger>
+                          <SelectContent>
+                            {patients.map((p) => (
+                              <SelectItem key={p.user_id} value={p.user_id}>
+                                {p.full_name || 'Unknown'}
+                              </SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+                      </div>
                       <div>
                         <Label>Medicine Name</Label>
                         <Input value={prescriptionForm.name} onChange={(e) => setPrescriptionForm({ ...prescriptionForm, name: e.target.value })} placeholder="e.g., Ibuprofen" />
@@ -292,7 +332,8 @@ const PatientProfile = () => {
                 <Table>
                   <TableHeader>
                     <TableRow>
-                      <TableHead>Name</TableHead>
+                      <TableHead>Patient</TableHead>
+                      <TableHead>Medicine</TableHead>
                       <TableHead>Dose</TableHead>
                       <TableHead>Timing</TableHead>
                       <TableHead className="w-[50px]"></TableHead>
@@ -301,6 +342,7 @@ const PatientProfile = () => {
                   <TableBody>
                     {prescriptions.map((p) => (
                       <TableRow key={p.id}>
+                        <TableCell>{p.patient_name}</TableCell>
                         <TableCell>{p.name}</TableCell>
                         <TableCell>{p.dose}</TableCell>
                         <TableCell>{renderTimingBadges(p)}</TableCell>
@@ -312,7 +354,7 @@ const PatientProfile = () => {
                       </TableRow>
                     ))}
                     {prescriptions.length === 0 && (
-                      <TableRow><TableCell colSpan={4} className="text-center text-muted-foreground">No prescriptions added</TableCell></TableRow>
+                      <TableRow><TableCell colSpan={5} className="text-center text-muted-foreground">No prescriptions</TableCell></TableRow>
                     )}
                   </TableBody>
                 </Table>
@@ -323,7 +365,7 @@ const PatientProfile = () => {
           <TabsContent value="procedures">
             <Card>
               <CardHeader className="flex flex-row items-center justify-between">
-                <CardTitle>My Procedures</CardTitle>
+                <CardTitle>All Procedures</CardTitle>
                 <Dialog open={procedureDialogOpen} onOpenChange={setProcedureDialogOpen}>
                   <DialogTrigger asChild>
                     <Button><Plus className="mr-2 h-4 w-4" />Add Procedure</Button>
@@ -333,6 +375,19 @@ const PatientProfile = () => {
                       <DialogTitle>Add Procedure</DialogTitle>
                     </DialogHeader>
                     <div className="space-y-4">
+                      <div>
+                        <Label>Patient</Label>
+                        <Select value={procedureForm.patient_id} onValueChange={(v) => setProcedureForm({ ...procedureForm, patient_id: v })}>
+                          <SelectTrigger><SelectValue placeholder="Select patient" /></SelectTrigger>
+                          <SelectContent>
+                            {patients.map((p) => (
+                              <SelectItem key={p.user_id} value={p.user_id}>
+                                {p.full_name || 'Unknown'}
+                              </SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+                      </div>
                       <div>
                         <Label>Procedure Name</Label>
                         <Input value={procedureForm.name} onChange={(e) => setProcedureForm({ ...procedureForm, name: e.target.value })} placeholder="e.g., Root Canal" />
@@ -365,7 +420,8 @@ const PatientProfile = () => {
                 <Table>
                   <TableHeader>
                     <TableRow>
-                      <TableHead>Name</TableHead>
+                      <TableHead>Patient</TableHead>
+                      <TableHead>Procedure</TableHead>
                       <TableHead>Status</TableHead>
                       <TableHead>Date</TableHead>
                       <TableHead className="w-[50px]"></TableHead>
@@ -374,6 +430,7 @@ const PatientProfile = () => {
                   <TableBody>
                     {procedures.map((p) => (
                       <TableRow key={p.id}>
+                        <TableCell>{p.patient_name}</TableCell>
                         <TableCell>{p.name}</TableCell>
                         <TableCell className="capitalize">{p.status}</TableCell>
                         <TableCell>{p.date || '-'}</TableCell>
@@ -385,7 +442,7 @@ const PatientProfile = () => {
                       </TableRow>
                     ))}
                     {procedures.length === 0 && (
-                      <TableRow><TableCell colSpan={4} className="text-center text-muted-foreground">No procedures added</TableCell></TableRow>
+                      <TableRow><TableCell colSpan={5} className="text-center text-muted-foreground">No procedures</TableCell></TableRow>
                     )}
                   </TableBody>
                 </Table>
@@ -395,66 +452,34 @@ const PatientProfile = () => {
 
           <TabsContent value="allergies">
             <Card>
-              <CardHeader className="flex flex-row items-center justify-between">
-                <CardTitle>My Allergies</CardTitle>
-                <Dialog open={allergyDialogOpen} onOpenChange={setAllergyDialogOpen}>
-                  <DialogTrigger asChild>
-                    <Button><Plus className="mr-2 h-4 w-4" />Add Allergy</Button>
-                  </DialogTrigger>
-                  <DialogContent>
-                    <DialogHeader>
-                      <DialogTitle>Add Allergy</DialogTitle>
-                    </DialogHeader>
-                    <div className="space-y-4">
-                      <div>
-                        <Label>Allergen</Label>
-                        <Input value={allergyForm.allergen} onChange={(e) => setAllergyForm({ ...allergyForm, allergen: e.target.value })} placeholder="e.g., Penicillin" />
-                      </div>
-                      <div>
-                        <Label>Severity</Label>
-                        <Select value={allergyForm.severity} onValueChange={(v) => setAllergyForm({ ...allergyForm, severity: v })}>
-                          <SelectTrigger><SelectValue /></SelectTrigger>
-                          <SelectContent>
-                            <SelectItem value="mild">Mild</SelectItem>
-                            <SelectItem value="moderate">Moderate</SelectItem>
-                            <SelectItem value="severe">Severe</SelectItem>
-                          </SelectContent>
-                        </Select>
-                      </div>
-                      <div>
-                        <Label>Action to Take</Label>
-                        <Textarea value={allergyForm.action_to_take} onChange={(e) => setAllergyForm({ ...allergyForm, action_to_take: e.target.value })} placeholder="e.g., Avoid medication, use alternative" />
-                      </div>
-                      <Button onClick={addAllergy} className="w-full">Add Allergy</Button>
-                    </div>
-                  </DialogContent>
-                </Dialog>
+              <CardHeader>
+                <CardTitle>Patient Allergies (View Only)</CardTitle>
               </CardHeader>
               <CardContent>
                 <Table>
                   <TableHeader>
                     <TableRow>
+                      <TableHead>Patient</TableHead>
                       <TableHead>Allergen</TableHead>
                       <TableHead>Severity</TableHead>
                       <TableHead>Action to Take</TableHead>
-                      <TableHead className="w-[50px]"></TableHead>
                     </TableRow>
                   </TableHeader>
                   <TableBody>
                     {allergies.map((a) => (
                       <TableRow key={a.id}>
+                        <TableCell>{a.patient_name}</TableCell>
                         <TableCell>{a.allergen}</TableCell>
-                        <TableCell className="capitalize">{a.severity}</TableCell>
-                        <TableCell>{a.action_to_take || '-'}</TableCell>
-                        <TableCell>
-                          <Button variant="ghost" size="icon" onClick={() => deleteAllergy(a.id)}>
-                            <Trash2 className="h-4 w-4 text-destructive" />
-                          </Button>
+                        <TableCell className="capitalize">
+                          <Badge variant={a.severity === 'severe' ? 'destructive' : a.severity === 'moderate' ? 'secondary' : 'outline'}>
+                            {a.severity}
+                          </Badge>
                         </TableCell>
+                        <TableCell>{a.action_to_take || '-'}</TableCell>
                       </TableRow>
                     ))}
                     {allergies.length === 0 && (
-                      <TableRow><TableCell colSpan={4} className="text-center text-muted-foreground">No allergies added</TableCell></TableRow>
+                      <TableRow><TableCell colSpan={4} className="text-center text-muted-foreground">No allergies recorded</TableCell></TableRow>
                     )}
                   </TableBody>
                 </Table>
@@ -467,4 +492,4 @@ const PatientProfile = () => {
   );
 };
 
-export default PatientProfile;
+export default DoctorManagement;

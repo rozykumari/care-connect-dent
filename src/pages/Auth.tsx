@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '@/hooks/useAuth';
+import { useUserRole } from '@/hooks/useUserRole';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -27,7 +28,8 @@ const signupSchema = z.object({
 
 const Auth = () => {
   const navigate = useNavigate();
-  const { user, loading, signIn, signUp, signInWithGoogle } = useAuth();
+  const { user, loading: authLoading, signIn, signUp, signInWithGoogle } = useAuth();
+  const { isDoctor, loading: roleLoading } = useUserRole();
   const [isSubmitting, setIsSubmitting] = useState(false);
   
   const [loginForm, setLoginForm] = useState({ email: '', password: '' });
@@ -35,10 +37,15 @@ const Auth = () => {
   const [errors, setErrors] = useState<Record<string, string>>({});
 
   useEffect(() => {
-    if (!loading && user) {
-      navigate('/profile');
+    if (!authLoading && !roleLoading && user) {
+      // Redirect based on role
+      if (isDoctor) {
+        navigate('/doctor');
+      } else {
+        navigate('/profile');
+      }
     }
-  }, [user, loading, navigate]);
+  }, [user, authLoading, roleLoading, isDoctor, navigate]);
 
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -68,7 +75,6 @@ const Auth = () => {
       }
     } else {
       toast.success('Welcome back!');
-      navigate('/profile');
     }
   };
 
@@ -100,7 +106,6 @@ const Auth = () => {
       }
     } else {
       toast.success('Account created successfully!');
-      navigate('/profile');
     }
   };
 
@@ -114,7 +119,7 @@ const Auth = () => {
     }
   };
 
-  if (loading) {
+  if (authLoading) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-background">
         <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div>

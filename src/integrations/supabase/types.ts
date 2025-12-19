@@ -47,7 +47,10 @@ export type Database = {
           dose: string
           id: string
           name: string
-          time: string
+          time_evening: boolean
+          time_morning: boolean
+          time_noon: boolean
+          time_sos: boolean
           user_id: string
         }
         Insert: {
@@ -55,7 +58,10 @@ export type Database = {
           dose: string
           id?: string
           name: string
-          time: string
+          time_evening?: boolean
+          time_morning?: boolean
+          time_noon?: boolean
+          time_sos?: boolean
           user_id: string
         }
         Update: {
@@ -63,7 +69,10 @@ export type Database = {
           dose?: string
           id?: string
           name?: string
-          time?: string
+          time_evening?: boolean
+          time_morning?: boolean
+          time_noon?: boolean
+          time_sos?: boolean
           user_id?: string
         }
         Relationships: []
@@ -157,7 +166,7 @@ export type Database = {
       }
     }
     Enums: {
-      app_role: "admin" | "patient"
+      app_role: "admin" | "patient" | "doctor"
     }
     CompositeTypes: {
       [_ in never]: never
@@ -285,7 +294,7 @@ export type CompositeTypes<
 export const Constants = {
   public: {
     Enums: {
-      app_role: ["admin", "patient"],
+      app_role: ["admin", "patient", "doctor"],
     },
   },
 } as const

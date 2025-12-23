@@ -5,14 +5,14 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Badge } from '@/components/ui/badge';
-import { Plus, Trash2, LogOut, Stethoscope } from 'lucide-react';
+import { ScrollArea } from '@/components/ui/scroll-area';
+import { Plus, Trash2, LogOut, Stethoscope, Pill, Activity, AlertTriangle } from 'lucide-react';
 import { toast } from 'sonner';
 
 interface Patient {
@@ -87,7 +87,6 @@ const DoctorManagement = () => {
   const fetchData = async () => {
     setLoading(true);
     try {
-      // Fetch patients (profiles)
       const { data: patientsData } = await supabase
         .from('profiles')
         .select('user_id, full_name')
@@ -97,7 +96,6 @@ const DoctorManagement = () => {
       patientsData?.forEach(p => patientMap.set(p.user_id, p.full_name || 'Unknown'));
       setPatients(patientsData || []);
 
-      // Fetch all prescriptions, procedures, allergies
       const [prescRes, procRes, allergyRes] = await Promise.all([
         supabase.from('patient_prescriptions').select('*').order('created_at', { ascending: false }),
         supabase.from('patient_procedures').select('*').order('created_at', { ascending: false }),
@@ -211,11 +209,11 @@ const DoctorManagement = () => {
 
   const renderTimingBadges = (p: Prescription) => {
     const badges = [];
-    if (p.time_morning) badges.push(<Badge key="m" variant="outline" className="bg-amber-100 text-amber-800 border-amber-300">M</Badge>);
-    if (p.time_noon) badges.push(<Badge key="n" variant="outline" className="bg-blue-100 text-blue-800 border-blue-300">N</Badge>);
-    if (p.time_evening) badges.push(<Badge key="e" variant="outline" className="bg-purple-100 text-purple-800 border-purple-300">E</Badge>);
-    if (p.time_sos) badges.push(<Badge key="sos" variant="outline" className="bg-red-100 text-red-800 border-red-300">SOS</Badge>);
-    return <div className="flex gap-1">{badges}</div>;
+    if (p.time_morning) badges.push(<Badge key="m" variant="outline" className="bg-amber-100 text-amber-800 border-amber-300 text-xs">M</Badge>);
+    if (p.time_noon) badges.push(<Badge key="n" variant="outline" className="bg-blue-100 text-blue-800 border-blue-300 text-xs">N</Badge>);
+    if (p.time_evening) badges.push(<Badge key="e" variant="outline" className="bg-purple-100 text-purple-800 border-purple-300 text-xs">E</Badge>);
+    if (p.time_sos) badges.push(<Badge key="sos" variant="outline" className="bg-red-100 text-red-800 border-red-300 text-xs">SOS</Badge>);
+    return <div className="flex flex-wrap gap-1">{badges}</div>;
   };
 
   if (loading) {
@@ -228,43 +226,59 @@ const DoctorManagement = () => {
 
   return (
     <div className="min-h-screen bg-background">
-      <header className="border-b bg-card">
-        <div className="container mx-auto flex items-center justify-between px-4 py-4">
-          <div className="flex items-center gap-3">
-            <Stethoscope className="h-8 w-8 text-primary" />
+      {/* Header - Responsive */}
+      <header className="border-b bg-card sticky top-0 z-10">
+        <div className="container mx-auto flex items-center justify-between px-3 sm:px-4 py-3 sm:py-4">
+          <div className="flex items-center gap-2 sm:gap-3">
+            <Stethoscope className="h-6 w-6 sm:h-8 sm:w-8 text-primary" />
             <div>
-              <h1 className="text-xl font-bold">Doctor Management</h1>
-              <p className="text-sm text-muted-foreground">Manage patient prescriptions & procedures</p>
+              <h1 className="text-lg sm:text-xl font-bold">Doctor Portal</h1>
+              <p className="text-xs sm:text-sm text-muted-foreground hidden sm:block">Manage patient records</p>
             </div>
           </div>
-          <Button variant="outline" onClick={signOut}>
-            <LogOut className="mr-2 h-4 w-4" />
-            Sign Out
+          <Button variant="outline" size="sm" onClick={signOut} className="gap-1 sm:gap-2">
+            <LogOut className="h-4 w-4" />
+            <span className="hidden sm:inline">Sign Out</span>
           </Button>
         </div>
       </header>
 
-      <main className="container mx-auto px-4 py-6">
+      <main className="container mx-auto px-3 sm:px-4 py-4 sm:py-6">
         <Tabs defaultValue="prescriptions" className="space-y-4">
-          <TabsList className="grid w-full grid-cols-3">
-            <TabsTrigger value="prescriptions">Prescriptions</TabsTrigger>
-            <TabsTrigger value="procedures">Procedures</TabsTrigger>
-            <TabsTrigger value="allergies">Allergies (View Only)</TabsTrigger>
+          <TabsList className="grid w-full grid-cols-3 h-auto">
+            <TabsTrigger value="prescriptions" className="text-xs sm:text-sm py-2 sm:py-2.5 flex items-center gap-1 sm:gap-2">
+              <Pill className="h-3 w-3 sm:h-4 sm:w-4" />
+              <span className="hidden xs:inline">Prescriptions</span>
+              <span className="xs:hidden">Rx</span>
+            </TabsTrigger>
+            <TabsTrigger value="procedures" className="text-xs sm:text-sm py-2 sm:py-2.5 flex items-center gap-1 sm:gap-2">
+              <Activity className="h-3 w-3 sm:h-4 sm:w-4" />
+              <span className="hidden xs:inline">Procedures</span>
+              <span className="xs:hidden">Proc</span>
+            </TabsTrigger>
+            <TabsTrigger value="allergies" className="text-xs sm:text-sm py-2 sm:py-2.5 flex items-center gap-1 sm:gap-2">
+              <AlertTriangle className="h-3 w-3 sm:h-4 sm:w-4" />
+              <span className="hidden xs:inline">Allergies</span>
+              <span className="xs:hidden">Allg</span>
+            </TabsTrigger>
           </TabsList>
 
+          {/* Prescriptions Tab */}
           <TabsContent value="prescriptions">
             <Card>
-              <CardHeader className="flex flex-row items-center justify-between">
-                <CardTitle>All Prescriptions</CardTitle>
+              <CardHeader className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-4">
+                <CardTitle className="text-base sm:text-lg">All Prescriptions</CardTitle>
                 <Dialog open={prescriptionDialogOpen} onOpenChange={setPrescriptionDialogOpen}>
                   <DialogTrigger asChild>
-                    <Button><Plus className="mr-2 h-4 w-4" />Add Prescription</Button>
+                    <Button size="sm" className="w-full sm:w-auto">
+                      <Plus className="mr-2 h-4 w-4" />Add Prescription
+                    </Button>
                   </DialogTrigger>
-                  <DialogContent>
+                  <DialogContent className="max-w-[95vw] sm:max-w-md">
                     <DialogHeader>
                       <DialogTitle>Add Prescription</DialogTitle>
                     </DialogHeader>
-                    <div className="space-y-4">
+                    <div className="space-y-4 max-h-[70vh] overflow-y-auto">
                       <div>
                         <Label>Patient</Label>
                         <Select value={prescriptionForm.patient_id} onValueChange={(v) => setPrescriptionForm({ ...prescriptionForm, patient_id: v })}>
@@ -288,37 +302,21 @@ const DoctorManagement = () => {
                       </div>
                       <div>
                         <Label>Timing</Label>
-                        <div className="flex gap-4 mt-2">
+                        <div className="grid grid-cols-2 gap-3 mt-2">
                           <div className="flex items-center gap-2">
-                            <Checkbox 
-                              id="morning" 
-                              checked={prescriptionForm.time_morning} 
-                              onCheckedChange={(c) => setPrescriptionForm({ ...prescriptionForm, time_morning: !!c })} 
-                            />
+                            <Checkbox id="morning" checked={prescriptionForm.time_morning} onCheckedChange={(c) => setPrescriptionForm({ ...prescriptionForm, time_morning: !!c })} />
                             <label htmlFor="morning" className="text-sm">M (Morning)</label>
                           </div>
                           <div className="flex items-center gap-2">
-                            <Checkbox 
-                              id="noon" 
-                              checked={prescriptionForm.time_noon} 
-                              onCheckedChange={(c) => setPrescriptionForm({ ...prescriptionForm, time_noon: !!c })} 
-                            />
+                            <Checkbox id="noon" checked={prescriptionForm.time_noon} onCheckedChange={(c) => setPrescriptionForm({ ...prescriptionForm, time_noon: !!c })} />
                             <label htmlFor="noon" className="text-sm">N (Noon)</label>
                           </div>
                           <div className="flex items-center gap-2">
-                            <Checkbox 
-                              id="evening" 
-                              checked={prescriptionForm.time_evening} 
-                              onCheckedChange={(c) => setPrescriptionForm({ ...prescriptionForm, time_evening: !!c })} 
-                            />
+                            <Checkbox id="evening" checked={prescriptionForm.time_evening} onCheckedChange={(c) => setPrescriptionForm({ ...prescriptionForm, time_evening: !!c })} />
                             <label htmlFor="evening" className="text-sm">E (Evening)</label>
                           </div>
                           <div className="flex items-center gap-2">
-                            <Checkbox 
-                              id="sos" 
-                              checked={prescriptionForm.time_sos} 
-                              onCheckedChange={(c) => setPrescriptionForm({ ...prescriptionForm, time_sos: !!c })} 
-                            />
+                            <Checkbox id="sos" checked={prescriptionForm.time_sos} onCheckedChange={(c) => setPrescriptionForm({ ...prescriptionForm, time_sos: !!c })} />
                             <label htmlFor="sos" className="text-sm">SOS</label>
                           </div>
                         </div>
@@ -328,53 +326,84 @@ const DoctorManagement = () => {
                   </DialogContent>
                 </Dialog>
               </CardHeader>
-              <CardContent>
-                <Table>
-                  <TableHeader>
-                    <TableRow>
-                      <TableHead>Patient</TableHead>
-                      <TableHead>Medicine</TableHead>
-                      <TableHead>Dose</TableHead>
-                      <TableHead>Timing</TableHead>
-                      <TableHead className="w-[50px]"></TableHead>
-                    </TableRow>
-                  </TableHeader>
-                  <TableBody>
-                    {prescriptions.map((p) => (
-                      <TableRow key={p.id}>
-                        <TableCell>{p.patient_name}</TableCell>
-                        <TableCell>{p.name}</TableCell>
-                        <TableCell>{p.dose}</TableCell>
-                        <TableCell>{renderTimingBadges(p)}</TableCell>
-                        <TableCell>
-                          <Button variant="ghost" size="icon" onClick={() => deletePrescription(p.id)}>
-                            <Trash2 className="h-4 w-4 text-destructive" />
-                          </Button>
-                        </TableCell>
-                      </TableRow>
-                    ))}
-                    {prescriptions.length === 0 && (
-                      <TableRow><TableCell colSpan={5} className="text-center text-muted-foreground">No prescriptions</TableCell></TableRow>
-                    )}
-                  </TableBody>
-                </Table>
+              <CardContent className="p-0 sm:p-6">
+                {/* Mobile Card View */}
+                <div className="block sm:hidden">
+                  <ScrollArea className="h-[60vh]">
+                    <div className="space-y-3 p-4">
+                      {prescriptions.map((p) => (
+                        <Card key={p.id} className="p-3">
+                          <div className="flex justify-between items-start">
+                            <div className="space-y-1 flex-1">
+                              <p className="font-medium text-sm">{p.name}</p>
+                              <p className="text-xs text-muted-foreground">{p.patient_name}</p>
+                              <p className="text-xs text-muted-foreground">Dose: {p.dose}</p>
+                              <div className="pt-1">{renderTimingBadges(p)}</div>
+                            </div>
+                            <Button variant="ghost" size="icon" onClick={() => deletePrescription(p.id)}>
+                              <Trash2 className="h-4 w-4 text-destructive" />
+                            </Button>
+                          </div>
+                        </Card>
+                      ))}
+                      {prescriptions.length === 0 && (
+                        <p className="text-center text-muted-foreground py-8">No prescriptions</p>
+                      )}
+                    </div>
+                  </ScrollArea>
+                </div>
+                {/* Desktop Table View */}
+                <div className="hidden sm:block overflow-x-auto">
+                  <table className="w-full">
+                    <thead>
+                      <tr className="border-b">
+                        <th className="text-left p-3 font-medium text-sm">Patient</th>
+                        <th className="text-left p-3 font-medium text-sm">Medicine</th>
+                        <th className="text-left p-3 font-medium text-sm">Dose</th>
+                        <th className="text-left p-3 font-medium text-sm">Timing</th>
+                        <th className="w-[50px]"></th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {prescriptions.map((p) => (
+                        <tr key={p.id} className="border-b hover:bg-muted/50">
+                          <td className="p-3 text-sm">{p.patient_name}</td>
+                          <td className="p-3 text-sm">{p.name}</td>
+                          <td className="p-3 text-sm">{p.dose}</td>
+                          <td className="p-3">{renderTimingBadges(p)}</td>
+                          <td className="p-3">
+                            <Button variant="ghost" size="icon" onClick={() => deletePrescription(p.id)}>
+                              <Trash2 className="h-4 w-4 text-destructive" />
+                            </Button>
+                          </td>
+                        </tr>
+                      ))}
+                      {prescriptions.length === 0 && (
+                        <tr><td colSpan={5} className="text-center text-muted-foreground p-8">No prescriptions</td></tr>
+                      )}
+                    </tbody>
+                  </table>
+                </div>
               </CardContent>
             </Card>
           </TabsContent>
 
+          {/* Procedures Tab */}
           <TabsContent value="procedures">
             <Card>
-              <CardHeader className="flex flex-row items-center justify-between">
-                <CardTitle>All Procedures</CardTitle>
+              <CardHeader className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-4">
+                <CardTitle className="text-base sm:text-lg">All Procedures</CardTitle>
                 <Dialog open={procedureDialogOpen} onOpenChange={setProcedureDialogOpen}>
                   <DialogTrigger asChild>
-                    <Button><Plus className="mr-2 h-4 w-4" />Add Procedure</Button>
+                    <Button size="sm" className="w-full sm:w-auto">
+                      <Plus className="mr-2 h-4 w-4" />Add Procedure
+                    </Button>
                   </DialogTrigger>
-                  <DialogContent>
+                  <DialogContent className="max-w-[95vw] sm:max-w-md">
                     <DialogHeader>
                       <DialogTitle>Add Procedure</DialogTitle>
                     </DialogHeader>
-                    <div className="space-y-4">
+                    <div className="space-y-4 max-h-[70vh] overflow-y-auto">
                       <div>
                         <Label>Patient</Label>
                         <Select value={procedureForm.patient_id} onValueChange={(v) => setProcedureForm({ ...procedureForm, patient_id: v })}>
@@ -416,73 +445,137 @@ const DoctorManagement = () => {
                   </DialogContent>
                 </Dialog>
               </CardHeader>
-              <CardContent>
-                <Table>
-                  <TableHeader>
-                    <TableRow>
-                      <TableHead>Patient</TableHead>
-                      <TableHead>Procedure</TableHead>
-                      <TableHead>Status</TableHead>
-                      <TableHead>Date</TableHead>
-                      <TableHead className="w-[50px]"></TableHead>
-                    </TableRow>
-                  </TableHeader>
-                  <TableBody>
-                    {procedures.map((p) => (
-                      <TableRow key={p.id}>
-                        <TableCell>{p.patient_name}</TableCell>
-                        <TableCell>{p.name}</TableCell>
-                        <TableCell className="capitalize">{p.status}</TableCell>
-                        <TableCell>{p.date || '-'}</TableCell>
-                        <TableCell>
-                          <Button variant="ghost" size="icon" onClick={() => deleteProcedure(p.id)}>
-                            <Trash2 className="h-4 w-4 text-destructive" />
-                          </Button>
-                        </TableCell>
-                      </TableRow>
-                    ))}
-                    {procedures.length === 0 && (
-                      <TableRow><TableCell colSpan={5} className="text-center text-muted-foreground">No procedures</TableCell></TableRow>
-                    )}
-                  </TableBody>
-                </Table>
+              <CardContent className="p-0 sm:p-6">
+                {/* Mobile Card View */}
+                <div className="block sm:hidden">
+                  <ScrollArea className="h-[60vh]">
+                    <div className="space-y-3 p-4">
+                      {procedures.map((p) => (
+                        <Card key={p.id} className="p-3">
+                          <div className="flex justify-between items-start">
+                            <div className="space-y-1 flex-1">
+                              <p className="font-medium text-sm">{p.name}</p>
+                              <p className="text-xs text-muted-foreground">{p.patient_name}</p>
+                              <div className="flex items-center gap-2 mt-1">
+                                <Badge variant={p.status === 'completed' ? 'default' : p.status === 'in-progress' ? 'secondary' : 'outline'} className="text-xs capitalize">
+                                  {p.status}
+                                </Badge>
+                                {p.date && <span className="text-xs text-muted-foreground">{p.date}</span>}
+                              </div>
+                            </div>
+                            <Button variant="ghost" size="icon" onClick={() => deleteProcedure(p.id)}>
+                              <Trash2 className="h-4 w-4 text-destructive" />
+                            </Button>
+                          </div>
+                        </Card>
+                      ))}
+                      {procedures.length === 0 && (
+                        <p className="text-center text-muted-foreground py-8">No procedures</p>
+                      )}
+                    </div>
+                  </ScrollArea>
+                </div>
+                {/* Desktop Table View */}
+                <div className="hidden sm:block overflow-x-auto">
+                  <table className="w-full">
+                    <thead>
+                      <tr className="border-b">
+                        <th className="text-left p-3 font-medium text-sm">Patient</th>
+                        <th className="text-left p-3 font-medium text-sm">Procedure</th>
+                        <th className="text-left p-3 font-medium text-sm">Status</th>
+                        <th className="text-left p-3 font-medium text-sm">Date</th>
+                        <th className="w-[50px]"></th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {procedures.map((p) => (
+                        <tr key={p.id} className="border-b hover:bg-muted/50">
+                          <td className="p-3 text-sm">{p.patient_name}</td>
+                          <td className="p-3 text-sm">{p.name}</td>
+                          <td className="p-3">
+                            <Badge variant={p.status === 'completed' ? 'default' : p.status === 'in-progress' ? 'secondary' : 'outline'} className="capitalize">
+                              {p.status}
+                            </Badge>
+                          </td>
+                          <td className="p-3 text-sm">{p.date || '-'}</td>
+                          <td className="p-3">
+                            <Button variant="ghost" size="icon" onClick={() => deleteProcedure(p.id)}>
+                              <Trash2 className="h-4 w-4 text-destructive" />
+                            </Button>
+                          </td>
+                        </tr>
+                      ))}
+                      {procedures.length === 0 && (
+                        <tr><td colSpan={5} className="text-center text-muted-foreground p-8">No procedures</td></tr>
+                      )}
+                    </tbody>
+                  </table>
+                </div>
               </CardContent>
             </Card>
           </TabsContent>
 
+          {/* Allergies Tab */}
           <TabsContent value="allergies">
             <Card>
-              <CardHeader>
-                <CardTitle>Patient Allergies (View Only)</CardTitle>
+              <CardHeader className="pb-4">
+                <CardTitle className="text-base sm:text-lg">Patient Allergies (View Only)</CardTitle>
               </CardHeader>
-              <CardContent>
-                <Table>
-                  <TableHeader>
-                    <TableRow>
-                      <TableHead>Patient</TableHead>
-                      <TableHead>Allergen</TableHead>
-                      <TableHead>Severity</TableHead>
-                      <TableHead>Action to Take</TableHead>
-                    </TableRow>
-                  </TableHeader>
-                  <TableBody>
-                    {allergies.map((a) => (
-                      <TableRow key={a.id}>
-                        <TableCell>{a.patient_name}</TableCell>
-                        <TableCell>{a.allergen}</TableCell>
-                        <TableCell className="capitalize">
-                          <Badge variant={a.severity === 'severe' ? 'destructive' : a.severity === 'moderate' ? 'secondary' : 'outline'}>
-                            {a.severity}
-                          </Badge>
-                        </TableCell>
-                        <TableCell>{a.action_to_take || '-'}</TableCell>
-                      </TableRow>
-                    ))}
-                    {allergies.length === 0 && (
-                      <TableRow><TableCell colSpan={4} className="text-center text-muted-foreground">No allergies recorded</TableCell></TableRow>
-                    )}
-                  </TableBody>
-                </Table>
+              <CardContent className="p-0 sm:p-6">
+                {/* Mobile Card View */}
+                <div className="block sm:hidden">
+                  <ScrollArea className="h-[60vh]">
+                    <div className="space-y-3 p-4">
+                      {allergies.map((a) => (
+                        <Card key={a.id} className="p-3">
+                          <div className="space-y-1">
+                            <div className="flex items-center justify-between">
+                              <p className="font-medium text-sm">{a.allergen}</p>
+                              <Badge variant={a.severity === 'severe' ? 'destructive' : a.severity === 'moderate' ? 'secondary' : 'outline'} className="text-xs capitalize">
+                                {a.severity}
+                              </Badge>
+                            </div>
+                            <p className="text-xs text-muted-foreground">{a.patient_name}</p>
+                            {a.action_to_take && <p className="text-xs text-muted-foreground mt-1">Action: {a.action_to_take}</p>}
+                          </div>
+                        </Card>
+                      ))}
+                      {allergies.length === 0 && (
+                        <p className="text-center text-muted-foreground py-8">No allergies recorded</p>
+                      )}
+                    </div>
+                  </ScrollArea>
+                </div>
+                {/* Desktop Table View */}
+                <div className="hidden sm:block overflow-x-auto">
+                  <table className="w-full">
+                    <thead>
+                      <tr className="border-b">
+                        <th className="text-left p-3 font-medium text-sm">Patient</th>
+                        <th className="text-left p-3 font-medium text-sm">Allergen</th>
+                        <th className="text-left p-3 font-medium text-sm">Severity</th>
+                        <th className="text-left p-3 font-medium text-sm">Action to Take</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {allergies.map((a) => (
+                        <tr key={a.id} className="border-b hover:bg-muted/50">
+                          <td className="p-3 text-sm">{a.patient_name}</td>
+                          <td className="p-3 text-sm">{a.allergen}</td>
+                          <td className="p-3">
+                            <Badge variant={a.severity === 'severe' ? 'destructive' : a.severity === 'moderate' ? 'secondary' : 'outline'} className="capitalize">
+                              {a.severity}
+                            </Badge>
+                          </td>
+                          <td className="p-3 text-sm">{a.action_to_take || '-'}</td>
+                        </tr>
+                      ))}
+                      {allergies.length === 0 && (
+                        <tr><td colSpan={4} className="text-center text-muted-foreground p-8">No allergies recorded</td></tr>
+                      )}
+                    </tbody>
+                  </table>
+                </div>
               </CardContent>
             </Card>
           </TabsContent>

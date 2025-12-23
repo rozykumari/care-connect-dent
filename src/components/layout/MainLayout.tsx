@@ -3,7 +3,7 @@ import { AppSidebar } from "./AppSidebar";
 import { useUserRole } from "@/hooks/useUserRole";
 import { useAuth } from "@/hooks/useAuth";
 import { Button } from "@/components/ui/button";
-import { LogOut, User } from "lucide-react";
+import { LogOut, User, Menu } from "lucide-react";
 import { Link } from "react-router-dom";
 
 interface MainLayoutProps {
@@ -15,13 +15,15 @@ export function MainLayout({ children }: MainLayoutProps) {
   const { isDoctor, isPatient } = useUserRole();
 
   return (
-    <SidebarProvider>
+    <SidebarProvider defaultOpen={true}>
       <div className="min-h-screen flex w-full bg-background">
         <AppSidebar />
         <main className="flex-1 overflow-auto flex flex-col">
-          {/* Mobile header with sidebar trigger */}
-          <header className="sticky top-0 z-40 flex h-14 items-center gap-4 border-b bg-background px-4 md:hidden">
-            <SidebarTrigger className="h-8 w-8" />
+          {/* Header with sidebar trigger - visible on all screen sizes */}
+          <header className="sticky top-0 z-40 flex h-14 items-center gap-4 border-b bg-background px-4">
+            <SidebarTrigger className="h-8 w-8">
+              <Menu className="h-5 w-5" />
+            </SidebarTrigger>
             <div className="flex-1">
               <span className="font-semibold text-foreground">DentaCare</span>
             </div>

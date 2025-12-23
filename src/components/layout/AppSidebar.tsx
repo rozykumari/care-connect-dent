@@ -3,11 +3,8 @@ import {
   Users,
   CreditCard,
   Home,
-  Menu,
-  X,
   Stethoscope,
   LogOut,
-  Settings,
   User,
   Clock,
 } from "lucide-react";
@@ -60,32 +57,23 @@ export function AppSidebar() {
   return (
     <Sidebar
       className={cn(
-        "border-r border-sidebar-border bg-sidebar transition-all duration-300",
-        isCollapsed ? "w-16" : "w-64"
+        "border-r border-sidebar-border bg-sidebar transition-all duration-300"
       )}
       collapsible="icon"
     >
       <SidebarHeader className="p-4 border-b border-sidebar-border">
-        <div className="flex items-center justify-between">
+        <div className="flex items-center gap-2">
+          <div className="w-8 h-8 rounded-lg gradient-primary flex items-center justify-center flex-shrink-0">
+            <span className="text-primary-foreground font-bold text-sm">DC</span>
+          </div>
           {!isCollapsed && (
-            <div className="flex items-center gap-2">
-              <div className="w-8 h-8 rounded-lg gradient-primary flex items-center justify-center">
-                <span className="text-primary-foreground font-bold text-sm">DC</span>
-              </div>
-              <div>
-                <h1 className="font-semibold text-sidebar-foreground">DentaCare</h1>
-                <p className="text-xs text-muted-foreground">Clinic Management</p>
-              </div>
+            <div>
+              <h1 className="font-semibold text-sidebar-foreground">DentaCare</h1>
+              <p className="text-xs text-muted-foreground">
+                {isDoctor ? "Doctor Portal" : "Patient Portal"}
+              </p>
             </div>
           )}
-          <Button
-            variant="ghost"
-            size="icon"
-            onClick={toggleSidebar}
-            className="h-8 w-8 text-sidebar-foreground hover:bg-sidebar-accent hidden md:flex"
-          >
-            {isCollapsed ? <Menu className="h-4 w-4" /> : <X className="h-4 w-4" />}
-          </Button>
         </div>
       </SidebarHeader>
 

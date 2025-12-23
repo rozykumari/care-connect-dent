@@ -1,6 +1,6 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { MainLayout } from "@/components/layout/MainLayout";
-import { useStore } from "@/store/useStore";
+import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Card, CardContent } from "@/components/ui/card";
@@ -20,8 +20,7 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { format } from "date-fns";
-import { Plus, Search, User, Phone, Mail, MapPin, Edit, Trash2 } from "lucide-react";
-import { Patient } from "@/types";
+import { Plus, Search, User, Phone, Mail, Edit, Trash2 } from "lucide-react";
 import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
 import {
@@ -34,9 +33,23 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
+import { toast } from "sonner";
+
+interface Patient {
+  id: string;
+  name: string;
+  email: string | null;
+  phone: string;
+  date_of_birth: string | null;
+  address: string | null;
+  medical_history: string | null;
+  allergies: string | null;
+  created_at: string;
+}
 
 const Patients = () => {
-  const { patients, addPatient, updatePatient, deletePatient } = useStore();
+  const [patients, setPatients] = useState<Patient[]>([]);
+  const [loading, setLoading] = useState(true);
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [searchQuery, setSearchQuery] = useState("");
   const [editingPatient, setEditingPatient] = useState<Patient | null>(null);
@@ -46,87 +59,155 @@ const Patients = () => {
     name: "",
     email: "",
     phone: "",
-    dateOfBirth: "",
+    date_of_birth: "",
     address: "",
-    medicalHistory: "",
+    medical_history: "",
     allergies: "",
   });
+
+  useEffect(() => {
+    fetchPatients();
+  }, []);
+
+  const fetchPatients = async () => {
+    try {
+      const { data, error } = await supabase
+        .from("patients")
+        .select("*")
+        .order("created_at", { ascending: false });
+
+      if (error) throw error;
+      setPatients(data || []);
+    } catch (error) {
+      console.error("Error fetching patients:", error);
+      toast.error("Failed to load patients");
+    } finally {
+      setLoading(false);
+    }
+  };
 
   const resetForm = () => {
     setFormData({
       name: "",
       email: "",
       phone: "",
-      dateOfBirth: "",
+      date_of_birth: "",
       address: "",
-      medicalHistory: "",
+      medical_history: "",
       allergies: "",
     });
     setEditingPatient(null);
   };
 
-  const handleSubmit = () => {
-    if (editingPatient) {
-      updatePatient(editingPatient.id, formData);
-    } else {
-      const newPatient: Patient = {
-        id: crypto.randomUUID(),
-        ...formData,
-        createdAt: new Date().toISOString(),
-      };
-      addPatient(newPatient);
+  const handleSubmit = async () => {
+    try {
+      if (editingPatient) {
+        const { error } = await supabase
+          .from("patients")
+          .update({
+            name: formData.name,
+            email: formData.email || null,
+            phone: formData.phone,
+            date_of_birth: formData.date_of_birth || null,
+            address: formData.address || null,
+            medical_history: formData.medical_history || null,
+            allergies: formData.allergies || null,
+          })
+          .eq("id", editingPatient.id);
+
+        if (error) throw error;
+        toast.success("Patient updated successfully");
+      } else {
+        const { error } = await supabase.from("patients").insert({
+          name: formData.name,
+          email: formData.email || null,
+          phone: formData.phone,
+          date_of_birth: formData.date_of_birth || null,
+          address: formData.address || null,
+          medical_history: formData.medical_history || null,
+          allergies: formData.allergies || null,
+        });
+
+        if (error) throw error;
+        toast.success("Patient added successfully");
+      }
+
+      setIsDialogOpen(false);
+      resetForm();
+      fetchPatients();
+    } catch (error) {
+      console.error("Error saving patient:", error);
+      toast.error("Failed to save patient");
     }
-    setIsDialogOpen(false);
-    resetForm();
   };
 
   const handleEdit = (patient: Patient) => {
     setEditingPatient(patient);
     setFormData({
       name: patient.name,
-      email: patient.email,
+      email: patient.email || "",
       phone: patient.phone,
-      dateOfBirth: patient.dateOfBirth,
-      address: patient.address,
-      medicalHistory: patient.medicalHistory || "",
+      date_of_birth: patient.date_of_birth || "",
+      address: patient.address || "",
+      medical_history: patient.medical_history || "",
       allergies: patient.allergies || "",
     });
     setIsDialogOpen(true);
   };
 
-  const handleDelete = () => {
-    if (deleteId) {
-      deletePatient(deleteId);
+  const handleDelete = async () => {
+    if (!deleteId) return;
+
+    try {
+      const { error } = await supabase.from("patients").delete().eq("id", deleteId);
+      if (error) throw error;
+
+      toast.success("Patient deleted successfully");
       setDeleteId(null);
+      fetchPatients();
+    } catch (error) {
+      console.error("Error deleting patient:", error);
+      toast.error("Failed to delete patient");
     }
   };
 
   const filteredPatients = patients.filter(
     (patient) =>
       patient.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      patient.email.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      (patient.email && patient.email.toLowerCase().includes(searchQuery.toLowerCase())) ||
       patient.phone.includes(searchQuery)
   );
 
+  if (loading) {
+    return (
+      <MainLayout>
+        <div className="flex items-center justify-center h-64">
+          <div className="h-8 w-8 animate-spin rounded-full border-4 border-primary border-t-transparent" />
+        </div>
+      </MainLayout>
+    );
+  }
+
   return (
     <MainLayout>
-      <div className="space-y-6 animate-fade-in">
-        <div className="flex items-center justify-between flex-wrap gap-4">
+      <div className="space-y-4 md:space-y-6 animate-fade-in">
+        {/* Header */}
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
           <div>
-            <h1 className="text-3xl font-bold text-foreground">Patients</h1>
-            <p className="text-muted-foreground mt-1">
+            <h1 className="text-2xl md:text-3xl font-bold text-foreground">Patients</h1>
+            <p className="text-sm md:text-base text-muted-foreground mt-1">
               Manage patient records and contacts
             </p>
           </div>
 
-          <div className="flex items-center gap-4">
+          <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-3">
             <div className="relative">
               <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
               <Input
                 placeholder="Search patients..."
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
-                className="pl-10 w-64"
+                className="pl-10 w-full sm:w-64"
               />
             </div>
 
@@ -135,61 +216,53 @@ const Patients = () => {
               if (!open) resetForm();
             }}>
               <DialogTrigger asChild>
-                <Button className="gradient-primary">
+                <Button className="gradient-primary w-full sm:w-auto">
                   <Plus className="h-4 w-4 mr-2" />
                   Add Patient
                 </Button>
               </DialogTrigger>
-              <DialogContent className="max-w-lg">
+              <DialogContent className="max-w-lg max-h-[90vh] overflow-y-auto">
                 <DialogHeader>
                   <DialogTitle>
                     {editingPatient ? "Edit Patient" : "Add New Patient"}
                   </DialogTitle>
                 </DialogHeader>
                 <div className="space-y-4 mt-4">
-                  <div className="grid grid-cols-2 gap-4">
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                     <div className="space-y-2">
-                      <Label>Full Name</Label>
+                      <Label>Full Name *</Label>
                       <Input
                         placeholder="John Doe"
                         value={formData.name}
-                        onChange={(e) =>
-                          setFormData({ ...formData, name: e.target.value })
-                        }
+                        onChange={(e) => setFormData({ ...formData, name: e.target.value })}
                       />
                     </div>
                     <div className="space-y-2">
                       <Label>Date of Birth</Label>
                       <Input
                         type="date"
-                        value={formData.dateOfBirth}
-                        onChange={(e) =>
-                          setFormData({ ...formData, dateOfBirth: e.target.value })
-                        }
+                        value={formData.date_of_birth}
+                        onChange={(e) => setFormData({ ...formData, date_of_birth: e.target.value })}
                       />
                     </div>
                   </div>
 
-                  <div className="grid grid-cols-2 gap-4">
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                     <div className="space-y-2">
                       <Label>Email</Label>
                       <Input
                         type="email"
                         placeholder="john@example.com"
                         value={formData.email}
-                        onChange={(e) =>
-                          setFormData({ ...formData, email: e.target.value })
-                        }
+                        onChange={(e) => setFormData({ ...formData, email: e.target.value })}
                       />
                     </div>
                     <div className="space-y-2">
-                      <Label>Phone</Label>
+                      <Label>Phone *</Label>
                       <Input
                         placeholder="+91 98765 43210"
                         value={formData.phone}
-                        onChange={(e) =>
-                          setFormData({ ...formData, phone: e.target.value })
-                        }
+                        onChange={(e) => setFormData({ ...formData, phone: e.target.value })}
                       />
                     </div>
                   </div>
@@ -199,9 +272,7 @@ const Patients = () => {
                     <Textarea
                       placeholder="Full address"
                       value={formData.address}
-                      onChange={(e) =>
-                        setFormData({ ...formData, address: e.target.value })
-                      }
+                      onChange={(e) => setFormData({ ...formData, address: e.target.value })}
                     />
                   </div>
 
@@ -209,10 +280,8 @@ const Patients = () => {
                     <Label>Medical History</Label>
                     <Textarea
                       placeholder="Previous conditions, surgeries, etc."
-                      value={formData.medicalHistory}
-                      onChange={(e) =>
-                        setFormData({ ...formData, medicalHistory: e.target.value })
-                      }
+                      value={formData.medical_history}
+                      onChange={(e) => setFormData({ ...formData, medical_history: e.target.value })}
                     />
                   </div>
 
@@ -221,9 +290,7 @@ const Patients = () => {
                     <Input
                       placeholder="Known allergies"
                       value={formData.allergies}
-                      onChange={(e) =>
-                        setFormData({ ...formData, allergies: e.target.value })
-                      }
+                      onChange={(e) => setFormData({ ...formData, allergies: e.target.value })}
                     />
                   </div>
 
@@ -240,7 +307,8 @@ const Patients = () => {
           </div>
         </div>
 
-        <Card className="glass-card">
+        {/* Desktop Table View */}
+        <Card className="glass-card hidden md:block">
           <CardContent className="p-0">
             <Table>
               <TableHeader>
@@ -283,34 +351,28 @@ const Patients = () => {
                             <Phone className="h-3 w-3 text-muted-foreground" />
                             {patient.phone}
                           </div>
-                          <div className="flex items-center gap-2 text-sm text-muted-foreground">
-                            <Mail className="h-3 w-3" />
-                            {patient.email}
-                          </div>
+                          {patient.email && (
+                            <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                              <Mail className="h-3 w-3" />
+                              {patient.email}
+                            </div>
+                          )}
                         </div>
                       </TableCell>
                       <TableCell>
-                        {patient.dateOfBirth
-                          ? format(new Date(patient.dateOfBirth), "MMM d, yyyy")
+                        {patient.date_of_birth
+                          ? format(new Date(patient.date_of_birth), "MMM d, yyyy")
                           : "-"}
                       </TableCell>
                       <TableCell>
-                        {format(new Date(patient.createdAt), "MMM d, yyyy")}
+                        {format(new Date(patient.created_at), "MMM d, yyyy")}
                       </TableCell>
                       <TableCell className="text-right">
                         <div className="flex items-center justify-end gap-2">
-                          <Button
-                            variant="ghost"
-                            size="icon"
-                            onClick={() => handleEdit(patient)}
-                          >
+                          <Button variant="ghost" size="icon" onClick={() => handleEdit(patient)}>
                             <Edit className="h-4 w-4" />
                           </Button>
-                          <Button
-                            variant="ghost"
-                            size="icon"
-                            onClick={() => setDeleteId(patient.id)}
-                          >
+                          <Button variant="ghost" size="icon" onClick={() => setDeleteId(patient.id)}>
                             <Trash2 className="h-4 w-4 text-destructive" />
                           </Button>
                         </div>
@@ -322,6 +384,53 @@ const Patients = () => {
             </Table>
           </CardContent>
         </Card>
+
+        {/* Mobile Card View */}
+        <div className="md:hidden space-y-3">
+          {filteredPatients.length === 0 ? (
+            <Card className="p-8 text-center">
+              <p className="text-muted-foreground">No patients found</p>
+            </Card>
+          ) : (
+            filteredPatients.map((patient) => (
+              <Card key={patient.id} className="p-4">
+                <div className="flex items-start justify-between gap-3">
+                  <div className="flex items-start gap-3 flex-1 min-w-0">
+                    <div className="w-10 h-10 rounded-full bg-primary/10 flex items-center justify-center flex-shrink-0">
+                      <User className="h-5 w-5 text-primary" />
+                    </div>
+                    <div className="min-w-0">
+                      <p className="font-medium truncate">{patient.name}</p>
+                      <div className="flex items-center gap-2 text-sm text-muted-foreground mt-1">
+                        <Phone className="h-3 w-3" />
+                        <span>{patient.phone}</span>
+                      </div>
+                      {patient.email && (
+                        <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                          <Mail className="h-3 w-3" />
+                          <span className="truncate">{patient.email}</span>
+                        </div>
+                      )}
+                      {patient.allergies && (
+                        <p className="text-xs text-destructive mt-1">
+                          Allergies: {patient.allergies}
+                        </p>
+                      )}
+                    </div>
+                  </div>
+                  <div className="flex items-center gap-1">
+                    <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => handleEdit(patient)}>
+                      <Edit className="h-4 w-4" />
+                    </Button>
+                    <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => setDeleteId(patient.id)}>
+                      <Trash2 className="h-4 w-4 text-destructive" />
+                    </Button>
+                  </div>
+                </div>
+              </Card>
+            ))
+          )}
+        </div>
       </div>
 
       <AlertDialog open={!!deleteId} onOpenChange={() => setDeleteId(null)}>

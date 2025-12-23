@@ -18,6 +18,8 @@ import Reports from "./pages/Reports";
 import Auth from "./pages/Auth";
 import PatientProfile from "./pages/PatientProfile";
 import DoctorManagement from "./pages/DoctorManagement";
+import DoctorAvailability from "./pages/DoctorAvailability";
+import BookAppointment from "./pages/BookAppointment";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
@@ -31,17 +33,21 @@ const App = () => (
         <BrowserRouter>
           <Routes>
             <Route path="/auth" element={<Auth />} />
+            {/* Patient Routes */}
             <Route path="/profile" element={<ProtectedRoute><PatientProfile /></ProtectedRoute>} />
+            <Route path="/book-appointment" element={<ProtectedRoute><BookAppointment /></ProtectedRoute>} />
+            {/* Doctor Routes */}
             <Route path="/doctor" element={<DoctorRoute><DoctorManagement /></DoctorRoute>} />
-            <Route path="/" element={<ProtectedRoute><Dashboard /></ProtectedRoute>} />
-            <Route path="/appointments" element={<ProtectedRoute><Appointments /></ProtectedRoute>} />
-            <Route path="/patients" element={<ProtectedRoute><Patients /></ProtectedRoute>} />
-            <Route path="/procedures" element={<ProtectedRoute><Procedures /></ProtectedRoute>} />
-            <Route path="/prescriptions" element={<ProtectedRoute><Prescriptions /></ProtectedRoute>} />
-            <Route path="/enquiries" element={<ProtectedRoute><Enquiries /></ProtectedRoute>} />
-            <Route path="/payments" element={<ProtectedRoute><Payments /></ProtectedRoute>} />
-            <Route path="/inventory" element={<ProtectedRoute><Inventory /></ProtectedRoute>} />
-            <Route path="/reports" element={<ProtectedRoute><Reports /></ProtectedRoute>} />
+            <Route path="/doctor/availability" element={<DoctorRoute><DoctorAvailability /></DoctorRoute>} />
+            <Route path="/" element={<DoctorRoute><Dashboard /></DoctorRoute>} />
+            <Route path="/appointments" element={<DoctorRoute><Appointments /></DoctorRoute>} />
+            <Route path="/patients" element={<DoctorRoute><Patients /></DoctorRoute>} />
+            <Route path="/procedures" element={<DoctorRoute><Procedures /></DoctorRoute>} />
+            <Route path="/prescriptions" element={<DoctorRoute><Prescriptions /></DoctorRoute>} />
+            <Route path="/enquiries" element={<DoctorRoute><Enquiries /></DoctorRoute>} />
+            <Route path="/payments" element={<DoctorRoute><Payments /></DoctorRoute>} />
+            <Route path="/inventory" element={<DoctorRoute><Inventory /></DoctorRoute>} />
+            <Route path="/reports" element={<DoctorRoute><Reports /></DoctorRoute>} />
             <Route path="*" element={<NotFound />} />
           </Routes>
         </BrowserRouter>

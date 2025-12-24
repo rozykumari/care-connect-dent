@@ -440,12 +440,14 @@ const Appointments = () => {
 
                   {/* Notes */}
                   <div className="space-y-2">
-                    <Label>Notes</Label>
+                    <Label>Notes (Optional)</Label>
                     <Textarea
                       placeholder="Add any notes..."
                       value={formData.notes}
                       onChange={(e) => setFormData({ ...formData, notes: e.target.value })}
+                      maxLength={1000}
                     />
+                    <p className="text-xs text-muted-foreground text-right">{formData.notes.length}/1000</p>
                   </div>
 
                   <Button

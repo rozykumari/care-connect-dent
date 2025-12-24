@@ -1,5 +1,6 @@
 import { useState, useEffect } from "react";
 import { MainLayout } from "@/components/layout/MainLayout";
+import { BookAppointmentSEO } from "@/components/SEO";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
 import { Button } from "@/components/ui/button";
@@ -245,7 +246,9 @@ const BookAppointment = () => {
   }
 
   return (
-    <MainLayout>
+    <>
+      <BookAppointmentSEO />
+      <MainLayout>
       <div className="space-y-6 animate-fade-in max-w-4xl mx-auto">
         <div>
           <h1 className="text-2xl md:text-3xl font-bold text-foreground">Book Appointment</h1>
@@ -412,6 +415,7 @@ const BookAppointment = () => {
         )}
       </div>
     </MainLayout>
+    </>
   );
 };
 

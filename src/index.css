@@ -132,3 +132,61 @@
     @apply bg-gradient-to-r from-primary to-accent bg-clip-text text-transparent;
   }
 }
+
+/* Print Styles */
+@media print {
+  /* Hide sidebar and navigation elements */
+  [data-sidebar],
+  .sidebar,
+  header,
+  nav,
+  .print\\:hidden {
+    display: none !important;
+  }
+
+  /* Reset body and main content */
+  body {
+    background: white !important;
+    color: black !important;
+    font-size: 12pt !important;
+  }
+
+  main {
+    padding: 0 !important;
+    margin: 0 !important;
+    width: 100% !important;
+  }
+
+  /* Show print-only elements */
+  .print\\:block {
+    display: block !important;
+  }
+
+  /* Card styling for print */
+  .print\\:border-0 {
+    border: none !important;
+  }
+
+  .print\\:shadow-none {
+    box-shadow: none !important;
+  }
+
+  /* Ensure proper page breaks */
+  .page-break-before {
+    page-break-before: always;
+  }
+
+  .page-break-after {
+    page-break-after: always;
+  }
+
+  .avoid-page-break {
+    page-break-inside: avoid;
+  }
+
+  /* Reset margins for print */
+  @page {
+    margin: 1cm;
+    size: A4;
+  }
+}

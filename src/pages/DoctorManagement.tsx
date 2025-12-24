@@ -24,7 +24,10 @@ import {
   Stethoscope,
   Activity,
   Pill,
-  X
+  X,
+  Phone,
+  Mail,
+  Building2
 } from 'lucide-react';
 import { toast } from 'sonner';
 import {
@@ -83,6 +86,18 @@ interface Procedure {
   status: string;
   date: string | null;
 }
+
+// Clinic/Doctor Configuration - Edit these values
+const CLINIC_CONFIG = {
+  hospitalName: 'DentaCare Clinic',
+  doctorName: 'Dr. John Smith',
+  qualification: 'BDS, MDS (Orthodontics)',
+  address: '123 Healthcare Avenue, Medical District',
+  city: 'Mumbai, Maharashtra - 400001',
+  phone: '+91 98765 43210',
+  email: 'contact@dentacare.com',
+  registrationNo: 'MH-12345',
+};
 
 const DoctorManagement = () => {
   const [patients, setPatients] = useState<Patient[]>([]);
@@ -328,15 +343,73 @@ const DoctorManagement = () => {
   return (
     <MainLayout>
       <div className="space-y-4 md:space-y-6 print:space-y-2" ref={printRef}>
-        {/* Header with Patient Search */}
-        <div className="flex flex-col gap-4">
+        {/* Print Header - Only visible when printing */}
+        <div className="hidden print:block mb-6">
+          <div className="border-b-2 border-primary pb-4 mb-4">
+            <div className="flex items-start justify-between">
+              {/* Left Side - Logo & Hospital Name */}
+              <div className="flex items-center gap-4">
+                <div className="h-16 w-16 rounded-full bg-primary/10 flex items-center justify-center border-2 border-primary">
+                  <Building2 className="h-8 w-8 text-primary" />
+                </div>
+                <div>
+                  {CLINIC_CONFIG.hospitalName && (
+                    <h1 className="text-2xl font-bold text-primary">{CLINIC_CONFIG.hospitalName}</h1>
+                  )}
+                  {CLINIC_CONFIG.doctorName && (
+                    <p className="text-lg font-semibold">{CLINIC_CONFIG.doctorName}</p>
+                  )}
+                  {CLINIC_CONFIG.qualification && (
+                    <p className="text-sm text-muted-foreground">{CLINIC_CONFIG.qualification}</p>
+                  )}
+                  {CLINIC_CONFIG.registrationNo && (
+                    <p className="text-xs text-muted-foreground">Reg. No: {CLINIC_CONFIG.registrationNo}</p>
+                  )}
+                </div>
+              </div>
+              
+              {/* Right Side - Contact Info */}
+              <div className="text-right text-sm space-y-1">
+                {CLINIC_CONFIG.address && (
+                  <p className="flex items-center justify-end gap-2">
+                    <span>{CLINIC_CONFIG.address}</span>
+                    <MapPin className="h-3 w-3" />
+                  </p>
+                )}
+                {CLINIC_CONFIG.city && (
+                  <p>{CLINIC_CONFIG.city}</p>
+                )}
+                {CLINIC_CONFIG.phone && (
+                  <p className="flex items-center justify-end gap-2">
+                    <span>{CLINIC_CONFIG.phone}</span>
+                    <Phone className="h-3 w-3" />
+                  </p>
+                )}
+                {CLINIC_CONFIG.email && (
+                  <p className="flex items-center justify-end gap-2">
+                    <span>{CLINIC_CONFIG.email}</span>
+                    <Mail className="h-3 w-3" />
+                  </p>
+                )}
+              </div>
+            </div>
+          </div>
+          
+          {/* Print Date */}
+          <div className="text-right text-xs text-muted-foreground mb-4">
+            Date: {new Date().toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' })}
+          </div>
+        </div>
+
+        {/* Header with Patient Search - Hidden on print */}
+        <div className="flex flex-col gap-4 print:hidden">
           <div>
             <h1 className="text-xl md:text-2xl font-bold text-foreground">Patient Management</h1>
             <p className="text-sm text-muted-foreground">Search and manage patient records</p>
           </div>
 
           {/* Patient Search */}
-          <div className="flex flex-col sm:flex-row gap-3 print:hidden">
+          <div className="flex flex-col sm:flex-row gap-3">
             <Popover open={searchOpen} onOpenChange={setSearchOpen}>
               <PopoverTrigger asChild>
                 <Button 

@@ -354,7 +354,9 @@ const BookAppointment = () => {
                         placeholder="Any specific concerns or information..."
                         value={notes}
                         onChange={(e) => setNotes(e.target.value)}
+                        maxLength={1000}
                       />
+                      <p className="text-xs text-muted-foreground text-right">{notes.length}/1000</p>
                     </div>
 
                     <Button

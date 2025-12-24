@@ -1,15 +1,15 @@
 import { useState, useEffect } from 'react';
 import { useAuth } from '@/hooks/useAuth';
 import { supabase } from '@/integrations/supabase/client';
+import { MainLayout } from '@/components/layout/MainLayout';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { Badge } from '@/components/ui/badge';
-import { ScrollArea } from '@/components/ui/scroll-area';
 import { Separator } from '@/components/ui/separator';
-import { LogOut, User, Pill, Activity, AlertTriangle, Save, Phone, MapPin, Calendar } from 'lucide-react';
+import { User, Pill, Activity, AlertTriangle, Save, Phone, MapPin, Calendar } from 'lucide-react';
 import { toast } from 'sonner';
 import { format } from 'date-fns';
 
@@ -55,7 +55,7 @@ interface Allergy {
 }
 
 const PatientProfile = () => {
-  const { user, signOut } = useAuth();
+  const { user } = useAuth();
   const [profile, setProfile] = useState<Profile>({ full_name: '', phone: '' });
   const [patient, setPatient] = useState<Patient | null>(null);
   const [prescriptions, setPrescriptions] = useState<Prescription[]>([]);
@@ -200,32 +200,21 @@ const PatientProfile = () => {
 
   if (loading) {
     return (
-      <div className="flex h-screen items-center justify-center bg-background">
-        <div className="h-8 w-8 animate-spin rounded-full border-4 border-primary border-t-transparent" />
-      </div>
+      <MainLayout>
+        <div className="flex items-center justify-center h-64">
+          <div className="h-8 w-8 animate-spin rounded-full border-4 border-primary border-t-transparent" />
+        </div>
+      </MainLayout>
     );
   }
 
   return (
-    <div className="min-h-screen bg-background">
-      {/* Header */}
-      <header className="border-b bg-card sticky top-0 z-10">
-        <div className="container mx-auto flex items-center justify-between px-4 py-3 sm:py-4">
-          <div className="flex items-center gap-3">
-            <User className="h-6 w-6 sm:h-8 sm:w-8 text-primary" />
-            <div className="min-w-0">
-              <h1 className="text-lg sm:text-xl font-bold">My Profile</h1>
-              <p className="text-xs sm:text-sm text-muted-foreground truncate max-w-[200px] sm:max-w-none">{user?.email}</p>
-            </div>
-          </div>
-          <Button variant="outline" size="sm" onClick={signOut} className="gap-2">
-            <LogOut className="h-4 w-4" />
-            <span className="hidden sm:inline">Sign Out</span>
-          </Button>
+    <MainLayout>
+      <div className="space-y-6 animate-fade-in max-w-4xl mx-auto">
+        <div>
+          <h1 className="text-2xl md:text-3xl font-bold text-foreground">My Profile</h1>
+          <p className="text-muted-foreground mt-1">{user?.email}</p>
         </div>
-      </header>
-
-      <main className="container mx-auto px-4 py-6 space-y-6 max-w-4xl">
         {/* Personal Details Section */}
         <Card>
           <CardHeader>
@@ -393,10 +382,10 @@ const PatientProfile = () => {
                 ))}
               </div>
             )}
-          </CardContent>
+            </CardContent>
         </Card>
-      </main>
-    </div>
+      </div>
+    </MainLayout>
   );
 };
 

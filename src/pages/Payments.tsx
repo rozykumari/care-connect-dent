@@ -9,12 +9,15 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from 
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { format } from "date-fns";
-import { Plus, Search, CreditCard, Loader2 } from "lucide-react";
+import { Plus, Search, Loader2, Trash2 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Label } from "@/components/ui/label";
 import { toast } from "sonner";
 import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from "@/components/ui/command";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import { Checkbox } from "@/components/ui/checkbox";
+import { ScrollArea } from "@/components/ui/scroll-area";
+import { Separator } from "@/components/ui/separator";
 
 interface Payment {
   id: string;
@@ -31,6 +34,23 @@ interface Patient {
   id: string;
   name: string;
   phone: string;
+  user_id: string | null;
+}
+
+interface PrescribedItem {
+  id: string;
+  name: string;
+  type: 'medicine' | 'procedure';
+  price: number;
+  selected: boolean;
+  details?: string;
+}
+
+interface InventoryItem {
+  id: string;
+  name: string;
+  category: string;
+  price: number;
 }
 
 const statusColors: Record<string, string> = {
@@ -42,16 +62,20 @@ const statusColors: Record<string, string> = {
 const Payments = () => {
   const [payments, setPayments] = useState<Payment[]>([]);
   const [patients, setPatients] = useState<Patient[]>([]);
+  const [inventoryItems, setInventoryItems] = useState<InventoryItem[]>([]);
   const [loading, setLoading] = useState(true);
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [searchQuery, setSearchQuery] = useState("");
   const [patientSearchOpen, setPatientSearchOpen] = useState(false);
   const [patientSearch, setPatientSearch] = useState("");
+  const [prescribedItems, setPrescribedItems] = useState<PrescribedItem[]>([]);
+  const [customItems, setCustomItems] = useState<PrescribedItem[]>([]);
+  const [newCustomItem, setNewCustomItem] = useState({ name: '', price: 0 });
 
   const [formData, setFormData] = useState({
     patientId: "",
     patientName: "",
-    amount: 0,
+    patientUserId: "" as string | null,
     method: "cash",
     description: "",
   });
@@ -66,10 +90,17 @@ const Payments = () => {
       // Fetch patients first
       const { data: patientsData } = await supabase
         .from("patients")
-        .select("id, name, phone")
+        .select("id, name, phone, user_id")
         .order("name");
 
       if (patientsData) setPatients(patientsData);
+
+      // Fetch inventory for price lookup
+      const { data: inventoryData } = await supabase
+        .from("inventory")
+        .select("id, name, category, price");
+
+      if (inventoryData) setInventoryItems(inventoryData);
 
       // Fetch payments with patient names
       const { data: paymentsData, error } = await supabase
@@ -96,26 +127,158 @@ const Payments = () => {
     }
   };
 
-  const handleSubmit = async () => {
-    if (!formData.patientId || !formData.amount) {
-      toast.error("Please select a patient and enter amount");
+  const fetchPatientPrescribedItems = async (userId: string | null) => {
+    if (!userId) {
+      setPrescribedItems([]);
       return;
     }
 
     try {
+      const [prescRes, procRes] = await Promise.all([
+        supabase.from('patient_prescriptions').select('*').eq('user_id', userId),
+        supabase.from('patient_procedures').select('*').eq('user_id', userId),
+      ]);
+
+      const items: PrescribedItem[] = [];
+
+      // Add prescriptions (medicines)
+      if (prescRes.data) {
+        prescRes.data.forEach(med => {
+          // Try to find price from inventory
+          const inventoryMatch = inventoryItems.find(
+            inv => inv.name.toLowerCase() === med.name.toLowerCase() && inv.category === 'medicine'
+          );
+          const timing = [
+            med.time_morning && 'M',
+            med.time_noon && 'N',
+            med.time_evening && 'E',
+            med.time_sos && 'SOS'
+          ].filter(Boolean).join(', ');
+          
+          items.push({
+            id: med.id,
+            name: med.name,
+            type: 'medicine',
+            price: inventoryMatch ? Number(inventoryMatch.price) : 0,
+            selected: true,
+            details: `${med.dose} (${timing})`
+          });
+        });
+      }
+
+      // Add procedures
+      if (procRes.data) {
+        procRes.data.forEach(proc => {
+          // Try to find price from inventory
+          const inventoryMatch = inventoryItems.find(
+            inv => (inv.name.toLowerCase() === proc.name.toLowerCase()) && 
+                   (inv.category === 'procedure' || inv.category === 'examination')
+          );
+          
+          items.push({
+            id: proc.id,
+            name: proc.name,
+            type: 'procedure',
+            price: inventoryMatch ? Number(inventoryMatch.price) : 0,
+            selected: true,
+            details: proc.status
+          });
+        });
+      }
+
+      setPrescribedItems(items);
+    } catch (error) {
+      console.error("Error fetching prescribed items:", error);
+    }
+  };
+
+  const handlePatientSelect = async (patient: Patient) => {
+    setFormData({ 
+      ...formData, 
+      patientId: patient.id, 
+      patientName: patient.name,
+      patientUserId: patient.user_id
+    });
+    setPatientSearchOpen(false);
+    setPatientSearch("");
+    setCustomItems([]);
+    await fetchPatientPrescribedItems(patient.user_id);
+  };
+
+  const toggleItemSelection = (id: string) => {
+    setPrescribedItems(items => 
+      items.map(item => 
+        item.id === id ? { ...item, selected: !item.selected } : item
+      )
+    );
+  };
+
+  const updateItemPrice = (id: string, price: number) => {
+    setPrescribedItems(items => 
+      items.map(item => 
+        item.id === id ? { ...item, price } : item
+      )
+    );
+  };
+
+  const addCustomItem = () => {
+    if (!newCustomItem.name.trim()) return;
+    
+    setCustomItems([...customItems, {
+      id: `custom-${Date.now()}`,
+      name: newCustomItem.name,
+      type: 'procedure',
+      price: newCustomItem.price,
+      selected: true
+    }]);
+    setNewCustomItem({ name: '', price: 0 });
+  };
+
+  const removeCustomItem = (id: string) => {
+    setCustomItems(items => items.filter(item => item.id !== id));
+  };
+
+  const calculateTotal = () => {
+    const prescribedTotal = prescribedItems
+      .filter(item => item.selected)
+      .reduce((sum, item) => sum + item.price, 0);
+    const customTotal = customItems.reduce((sum, item) => sum + item.price, 0);
+    return prescribedTotal + customTotal;
+  };
+
+  const handleSubmit = async () => {
+    if (!formData.patientId) {
+      toast.error("Please select a patient");
+      return;
+    }
+
+    const totalAmount = calculateTotal();
+    if (totalAmount <= 0) {
+      toast.error("Please add items or set prices");
+      return;
+    }
+
+    // Build description from selected items
+    const selectedPrescribed = prescribedItems.filter(i => i.selected);
+    const allItems = [...selectedPrescribed, ...customItems];
+    const description = allItems.map(i => `${i.name}: ₹${i.price}`).join(', ');
+
+    try {
       const { error } = await supabase.from("payments").insert({
         patient_id: formData.patientId,
-        amount: formData.amount,
+        amount: totalAmount,
         method: formData.method,
         status: "completed",
-        description: formData.description || null,
+        description: description || null,
       });
 
       if (error) throw error;
 
       toast.success("Payment recorded");
       setIsDialogOpen(false);
-      setFormData({ patientId: "", patientName: "", amount: 0, method: "cash", description: "" });
+      setFormData({ patientId: "", patientName: "", patientUserId: null, method: "cash", description: "" });
+      setPrescribedItems([]);
+      setCustomItems([]);
       fetchData();
     } catch (error) {
       console.error("Error recording payment:", error);
@@ -172,11 +335,11 @@ const Payments = () => {
                   Record Payment
                 </Button>
               </DialogTrigger>
-              <DialogContent className="max-w-md">
+              <DialogContent className="max-w-lg max-h-[90vh] overflow-hidden flex flex-col">
                 <DialogHeader>
                   <DialogTitle>Record Payment</DialogTitle>
                 </DialogHeader>
-                <div className="space-y-4 mt-4">
+                <div className="space-y-4 flex-1 overflow-y-auto pr-2">
                   {/* Patient Search */}
                   <div className="space-y-2">
                     <Label>Patient</Label>
@@ -200,11 +363,7 @@ const Payments = () => {
                                 <CommandItem
                                   key={p.id}
                                   value={p.id}
-                                  onSelect={() => {
-                                    setFormData({ ...formData, patientId: p.id, patientName: p.name });
-                                    setPatientSearchOpen(false);
-                                    setPatientSearch("");
-                                  }}
+                                  onSelect={() => handlePatientSelect(p)}
                                 >
                                   <div>
                                     <p className="font-medium">{p.name}</p>
@@ -219,14 +378,108 @@ const Payments = () => {
                     </Popover>
                   </div>
 
+                  {/* Prescribed Items */}
+                  {formData.patientId && (
+                    <>
+                      <Separator />
+                      <div className="space-y-3">
+                        <Label className="text-base font-medium">Prescribed Items</Label>
+                        {prescribedItems.length === 0 ? (
+                          <p className="text-sm text-muted-foreground">No prescriptions found for this patient</p>
+                        ) : (
+                          <ScrollArea className="h-48">
+                            <div className="space-y-2">
+                              {prescribedItems.map((item) => (
+                                <div 
+                                  key={item.id} 
+                                  className={cn(
+                                    "flex items-center gap-3 p-2 rounded-md border",
+                                    item.selected ? "bg-primary/5 border-primary/30" : "bg-muted/30"
+                                  )}
+                                >
+                                  <Checkbox
+                                    checked={item.selected}
+                                    onCheckedChange={() => toggleItemSelection(item.id)}
+                                  />
+                                  <div className="flex-1 min-w-0">
+                                    <p className="font-medium text-sm truncate">{item.name}</p>
+                                    <div className="flex items-center gap-2">
+                                      <Badge variant="outline" className="text-xs capitalize">
+                                        {item.type}
+                                      </Badge>
+                                      {item.details && (
+                                        <span className="text-xs text-muted-foreground">{item.details}</span>
+                                      )}
+                                    </div>
+                                  </div>
+                                  <Input
+                                    type="number"
+                                    className="w-24 text-right"
+                                    value={item.price || ''}
+                                    onChange={(e) => updateItemPrice(item.id, parseFloat(e.target.value) || 0)}
+                                    placeholder="₹0"
+                                  />
+                                </div>
+                              ))}
+                            </div>
+                          </ScrollArea>
+                        )}
+                      </div>
+
+                      {/* Custom Items */}
+                      <div className="space-y-3">
+                        <Label className="text-sm">Add Custom Item</Label>
+                        <div className="flex gap-2">
+                          <Input
+                            placeholder="Item name"
+                            value={newCustomItem.name}
+                            onChange={(e) => setNewCustomItem({ ...newCustomItem, name: e.target.value })}
+                            className="flex-1"
+                          />
+                          <Input
+                            type="number"
+                            placeholder="₹"
+                            value={newCustomItem.price || ''}
+                            onChange={(e) => setNewCustomItem({ ...newCustomItem, price: parseFloat(e.target.value) || 0 })}
+                            className="w-24"
+                          />
+                          <Button size="sm" onClick={addCustomItem}>
+                            <Plus className="h-4 w-4" />
+                          </Button>
+                        </div>
+                        {customItems.length > 0 && (
+                          <div className="space-y-2">
+                            {customItems.map((item) => (
+                              <div key={item.id} className="flex items-center justify-between p-2 rounded bg-muted/50">
+                                <span className="text-sm">{item.name}</span>
+                                <div className="flex items-center gap-2">
+                                  <span className="text-sm font-medium">₹{item.price}</span>
+                                  <Button 
+                                    variant="ghost" 
+                                    size="icon" 
+                                    className="h-6 w-6"
+                                    onClick={() => removeCustomItem(item.id)}
+                                  >
+                                    <Trash2 className="h-3 w-3 text-destructive" />
+                                  </Button>
+                                </div>
+                              </div>
+                            ))}
+                          </div>
+                        )}
+                      </div>
+
+                      <Separator />
+                    </>
+                  )}
+
+                  {/* Total and Method */}
                   <div className="grid grid-cols-2 gap-4">
                     <div className="space-y-2">
-                      <Label>Amount (₹)</Label>
-                      <Input
-                        type="number"
-                        value={formData.amount || ""}
-                        onChange={(e) => setFormData({ ...formData, amount: parseFloat(e.target.value) || 0 })}
-                      />
+                      <Label>Total Amount</Label>
+                      <div className="text-2xl font-bold text-primary">
+                        ₹{calculateTotal().toLocaleString()}
+                      </div>
                     </div>
                     <div className="space-y-2">
                       <Label>Method</Label>
@@ -244,21 +497,12 @@ const Payments = () => {
                     </div>
                   </div>
 
-                  <div className="space-y-2">
-                    <Label>Description</Label>
-                    <Input
-                      value={formData.description}
-                      onChange={(e) => setFormData({ ...formData, description: e.target.value })}
-                      placeholder="Payment for..."
-                    />
-                  </div>
-
                   <Button
                     onClick={handleSubmit}
                     className="w-full"
-                    disabled={!formData.patientId || !formData.amount}
+                    disabled={!formData.patientId || calculateTotal() <= 0}
                   >
-                    Record Payment
+                    Record Payment - ₹{calculateTotal().toLocaleString()}
                   </Button>
                 </div>
               </DialogContent>
@@ -291,6 +535,9 @@ const Payments = () => {
                     <span className="text-lg font-semibold">₹{Number(payment.amount).toLocaleString()}</span>
                     <span className="text-sm text-muted-foreground capitalize">{payment.method}</span>
                   </div>
+                  {payment.description && (
+                    <p className="text-xs text-muted-foreground mt-2 truncate">{payment.description}</p>
+                  )}
                 </CardContent>
               </Card>
             ))
@@ -308,12 +555,13 @@ const Payments = () => {
                   <TableHead>Method</TableHead>
                   <TableHead>Date</TableHead>
                   <TableHead>Status</TableHead>
+                  <TableHead>Description</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
                 {filteredPayments.length === 0 ? (
                   <TableRow>
-                    <TableCell colSpan={5} className="text-center py-8 text-muted-foreground">
+                    <TableCell colSpan={6} className="text-center py-8 text-muted-foreground">
                       No payments found
                     </TableCell>
                   </TableRow>
@@ -326,6 +574,9 @@ const Payments = () => {
                       <TableCell>{format(new Date(payment.date), "MMM d, yyyy")}</TableCell>
                       <TableCell>
                         <Badge className={cn(statusColors[payment.status])}>{payment.status}</Badge>
+                      </TableCell>
+                      <TableCell className="max-w-[200px] truncate text-muted-foreground text-sm">
+                        {payment.description || '-'}
                       </TableCell>
                     </TableRow>
                   ))

@@ -39,7 +39,7 @@ import {
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
 import { format } from "date-fns";
-import { Plus, Search, Package, AlertTriangle, Edit, Trash2, Pill, Wrench } from "lucide-react";
+import { Plus, Search, Package, AlertTriangle, Edit, Trash2, Pill, Wrench, Stethoscope, Activity } from "lucide-react";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { toast } from "sonner";
@@ -212,6 +212,10 @@ const DoctorInventory = () => {
     switch (category) {
       case "medicine":
         return <Pill className="h-4 w-4" />;
+      case "procedure":
+        return <Stethoscope className="h-4 w-4" />;
+      case "examination":
+        return <Activity className="h-4 w-4" />;
       case "tool":
         return <Wrench className="h-4 w-4" />;
       default:
@@ -279,6 +283,8 @@ const DoctorInventory = () => {
                       </SelectTrigger>
                       <SelectContent>
                         <SelectItem value="medicine">Medicine</SelectItem>
+                        <SelectItem value="procedure">Procedure</SelectItem>
+                        <SelectItem value="examination">Examination</SelectItem>
                         <SelectItem value="tool">Tool</SelectItem>
                         <SelectItem value="supply">Supply</SelectItem>
                         <SelectItem value="equipment">Equipment</SelectItem>
@@ -393,6 +399,8 @@ const DoctorInventory = () => {
             <SelectContent>
               <SelectItem value="all">All Categories</SelectItem>
               <SelectItem value="medicine">Medicine</SelectItem>
+              <SelectItem value="procedure">Procedure</SelectItem>
+              <SelectItem value="examination">Examination</SelectItem>
               <SelectItem value="tool">Tool</SelectItem>
               <SelectItem value="supply">Supply</SelectItem>
               <SelectItem value="equipment">Equipment</SelectItem>

@@ -1,5 +1,6 @@
 import { useState, useEffect, useRef } from 'react';
 import { supabase } from '@/integrations/supabase/client';
+import { useAuth } from '@/hooks/useAuth';
 import { MainLayout } from '@/components/layout/MainLayout';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -27,7 +28,8 @@ import {
   X,
   Phone,
   Mail,
-  Building2
+  Building2,
+  ChevronDown
 } from 'lucide-react';
 import { toast } from 'sonner';
 import {
@@ -76,6 +78,7 @@ interface Prescription {
   time_noon: boolean;
   time_evening: boolean;
   time_sos: boolean;
+  price?: number;
 }
 
 interface Procedure {
@@ -85,6 +88,14 @@ interface Procedure {
   description: string | null;
   status: string;
   date: string | null;
+  price?: number;
+}
+
+interface InventoryItem {
+  id: string;
+  name: string;
+  category: string;
+  price: number;
 }
 
 // Clinic/Doctor Configuration - Edit these values
@@ -100,10 +111,12 @@ const CLINIC_CONFIG = {
 };
 
 const DoctorManagement = () => {
+  const { user } = useAuth();
   const [patients, setPatients] = useState<Patient[]>([]);
   const [selectedPatient, setSelectedPatient] = useState<Patient | null>(null);
   const [prescriptions, setPrescriptions] = useState<Prescription[]>([]);
   const [procedures, setProcedures] = useState<Procedure[]>([]);
+  const [inventoryItems, setInventoryItems] = useState<InventoryItem[]>([]);
   const [loading, setLoading] = useState(true);
   const [searchOpen, setSearchOpen] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
@@ -121,6 +134,8 @@ const DoctorManagement = () => {
 
   // Medicine form
   const [medicineDialogOpen, setMedicineDialogOpen] = useState(false);
+  const [medicineSearchOpen, setMedicineSearchOpen] = useState(false);
+  const [medicineSearch, setMedicineSearch] = useState('');
   const [medicineForm, setMedicineForm] = useState({
     name: '',
     dose: '',
@@ -128,22 +143,27 @@ const DoctorManagement = () => {
     time_noon: false,
     time_evening: false,
     time_sos: false,
+    price: 0,
   });
 
   // Procedure form
   const [procedureDialogOpen, setProcedureDialogOpen] = useState(false);
+  const [procedureSearchOpen, setProcedureSearchOpen] = useState(false);
+  const [procedureSearch, setProcedureSearch] = useState('');
   const [procedureForm, setProcedureForm] = useState({
     name: '',
     description: '',
     status: 'planned',
     date: '',
+    price: 0,
   });
 
   const printRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     fetchPatients();
-  }, []);
+    fetchInventory();
+  }, [user]);
 
   useEffect(() => {
     if (selectedPatient?.user_id) {
@@ -153,6 +173,21 @@ const DoctorManagement = () => {
       setProcedures([]);
     }
   }, [selectedPatient]);
+
+  const fetchInventory = async () => {
+    if (!user) return;
+    try {
+      const { data, error } = await supabase
+        .from('inventory')
+        .select('id, name, category, price')
+        .order('name');
+
+      if (error) throw error;
+      setInventoryItems(data || []);
+    } catch (error) {
+      console.error('Error fetching inventory:', error);
+    }
+  };
 
   const fetchPatients = async () => {
     setLoading(true);
@@ -265,6 +300,7 @@ const DoctorManagement = () => {
         time_noon: false,
         time_evening: false,
         time_sos: false,
+        price: 0,
       });
       setMedicineDialogOpen(false);
       fetchPatientData(selectedPatient.user_id);
@@ -289,7 +325,7 @@ const DoctorManagement = () => {
       toast.error('Failed to add procedure');
     } else {
       toast.success('Procedure added');
-      setProcedureForm({ name: '', description: '', status: 'planned', date: '' });
+      setProcedureForm({ name: '', description: '', status: 'planned', date: '', price: 0 });
       setProcedureDialogOpen(false);
       fetchPatientData(selectedPatient.user_id);
     }
@@ -776,19 +812,89 @@ const DoctorManagement = () => {
           <div className="space-y-4 max-h-[70vh] overflow-y-auto">
             <div>
               <Label>Medicine Name *</Label>
+              <Popover open={medicineSearchOpen} onOpenChange={setMedicineSearchOpen}>
+                <PopoverTrigger asChild>
+                  <Button variant="outline" className="w-full justify-between">
+                    {medicineForm.name || "Select or type medicine..."}
+                    <ChevronDown className="h-4 w-4 opacity-50" />
+                  </Button>
+                </PopoverTrigger>
+                <PopoverContent className="w-full p-0" align="start">
+                  <Command>
+                    <CommandInput 
+                      placeholder="Search inventory..." 
+                      value={medicineSearch}
+                      onValueChange={setMedicineSearch}
+                    />
+                    <CommandList>
+                      <CommandEmpty>
+                        <Button 
+                          variant="ghost" 
+                          className="w-full"
+                          onClick={() => {
+                            setMedicineForm({ ...medicineForm, name: medicineSearch, price: 0 });
+                            setMedicineSearchOpen(false);
+                          }}
+                        >
+                          Use "{medicineSearch}" (custom)
+                        </Button>
+                      </CommandEmpty>
+                      <CommandGroup>
+                        {inventoryItems
+                          .filter(item => item.category === 'medicine')
+                          .filter(item => item.name.toLowerCase().includes(medicineSearch.toLowerCase()))
+                          .slice(0, 10)
+                          .map((item) => (
+                            <CommandItem
+                              key={item.id}
+                              value={item.id}
+                              onSelect={() => {
+                                setMedicineForm({ 
+                                  ...medicineForm, 
+                                  name: item.name, 
+                                  price: Number(item.price) 
+                                });
+                                setMedicineSearchOpen(false);
+                                setMedicineSearch('');
+                              }}
+                            >
+                              <div className="flex justify-between w-full">
+                                <span>{item.name}</span>
+                                <span className="text-muted-foreground">₹{Number(item.price).toFixed(2)}</span>
+                              </div>
+                            </CommandItem>
+                          ))}
+                      </CommandGroup>
+                    </CommandList>
+                  </Command>
+                </PopoverContent>
+              </Popover>
               <Input 
+                className="mt-2"
                 value={medicineForm.name} 
                 onChange={(e) => setMedicineForm({ ...medicineForm, name: e.target.value })} 
-                placeholder="e.g., Ibuprofen" 
+                placeholder="Or type medicine name manually" 
               />
             </div>
-            <div>
-              <Label>Dose *</Label>
-              <Input 
-                value={medicineForm.dose} 
-                onChange={(e) => setMedicineForm({ ...medicineForm, dose: e.target.value })} 
-                placeholder="e.g., 500mg" 
-              />
+            <div className="grid grid-cols-2 gap-3">
+              <div>
+                <Label>Dose *</Label>
+                <Input 
+                  value={medicineForm.dose} 
+                  onChange={(e) => setMedicineForm({ ...medicineForm, dose: e.target.value })} 
+                  placeholder="e.g., 500mg" 
+                />
+              </div>
+              <div>
+                <Label>Price (₹)</Label>
+                <Input 
+                  type="number"
+                  step="0.01"
+                  value={medicineForm.price || ''} 
+                  onChange={(e) => setMedicineForm({ ...medicineForm, price: parseFloat(e.target.value) || 0 })} 
+                  placeholder="0.00" 
+                />
+              </div>
             </div>
             <div>
               <Label>Timing *</Label>
@@ -841,11 +947,121 @@ const DoctorManagement = () => {
           <div className="space-y-4 max-h-[70vh] overflow-y-auto">
             <div>
               <Label>Procedure Name *</Label>
+              <Popover open={procedureSearchOpen} onOpenChange={setProcedureSearchOpen}>
+                <PopoverTrigger asChild>
+                  <Button variant="outline" className="w-full justify-between">
+                    {procedureForm.name || "Select or type procedure..."}
+                    <ChevronDown className="h-4 w-4 opacity-50" />
+                  </Button>
+                </PopoverTrigger>
+                <PopoverContent className="w-full p-0" align="start">
+                  <Command>
+                    <CommandInput 
+                      placeholder="Search procedures/examinations..." 
+                      value={procedureSearch}
+                      onValueChange={setProcedureSearch}
+                    />
+                    <CommandList>
+                      <CommandEmpty>
+                        <Button 
+                          variant="ghost" 
+                          className="w-full"
+                          onClick={() => {
+                            setProcedureForm({ ...procedureForm, name: procedureSearch, price: 0 });
+                            setProcedureSearchOpen(false);
+                          }}
+                        >
+                          Use "{procedureSearch}" (custom)
+                        </Button>
+                      </CommandEmpty>
+                      <CommandGroup heading="Procedures">
+                        {inventoryItems
+                          .filter(item => item.category === 'procedure')
+                          .filter(item => item.name.toLowerCase().includes(procedureSearch.toLowerCase()))
+                          .slice(0, 5)
+                          .map((item) => (
+                            <CommandItem
+                              key={item.id}
+                              value={item.id}
+                              onSelect={() => {
+                                setProcedureForm({ 
+                                  ...procedureForm, 
+                                  name: item.name, 
+                                  price: Number(item.price) 
+                                });
+                                setProcedureSearchOpen(false);
+                                setProcedureSearch('');
+                              }}
+                            >
+                              <div className="flex justify-between w-full">
+                                <span>{item.name}</span>
+                                <span className="text-muted-foreground">₹{Number(item.price).toFixed(2)}</span>
+                              </div>
+                            </CommandItem>
+                          ))}
+                      </CommandGroup>
+                      <CommandGroup heading="Examinations">
+                        {inventoryItems
+                          .filter(item => item.category === 'examination')
+                          .filter(item => item.name.toLowerCase().includes(procedureSearch.toLowerCase()))
+                          .slice(0, 5)
+                          .map((item) => (
+                            <CommandItem
+                              key={item.id}
+                              value={item.id}
+                              onSelect={() => {
+                                setProcedureForm({ 
+                                  ...procedureForm, 
+                                  name: item.name, 
+                                  price: Number(item.price) 
+                                });
+                                setProcedureSearchOpen(false);
+                                setProcedureSearch('');
+                              }}
+                            >
+                              <div className="flex justify-between w-full">
+                                <span>{item.name}</span>
+                                <span className="text-muted-foreground">₹{Number(item.price).toFixed(2)}</span>
+                              </div>
+                            </CommandItem>
+                          ))}
+                      </CommandGroup>
+                    </CommandList>
+                  </Command>
+                </PopoverContent>
+              </Popover>
               <Input 
+                className="mt-2"
                 value={procedureForm.name} 
                 onChange={(e) => setProcedureForm({ ...procedureForm, name: e.target.value })} 
-                placeholder="e.g., Root Canal" 
+                placeholder="Or type procedure name manually" 
               />
+            </div>
+            <div className="grid grid-cols-2 gap-3">
+              <div>
+                <Label>Status</Label>
+                <Select 
+                  value={procedureForm.status} 
+                  onValueChange={(v) => setProcedureForm({ ...procedureForm, status: v })}
+                >
+                  <SelectTrigger><SelectValue /></SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="planned">Planned</SelectItem>
+                    <SelectItem value="in-progress">In Progress</SelectItem>
+                    <SelectItem value="completed">Completed</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+              <div>
+                <Label>Price (₹)</Label>
+                <Input 
+                  type="number"
+                  step="0.01"
+                  value={procedureForm.price || ''} 
+                  onChange={(e) => setProcedureForm({ ...procedureForm, price: parseFloat(e.target.value) || 0 })} 
+                  placeholder="0.00" 
+                />
+              </div>
             </div>
             <div>
               <Label>Description</Label>
@@ -854,20 +1070,6 @@ const DoctorManagement = () => {
                 onChange={(e) => setProcedureForm({ ...procedureForm, description: e.target.value })} 
                 placeholder="Optional details" 
               />
-            </div>
-            <div>
-              <Label>Status</Label>
-              <Select 
-                value={procedureForm.status} 
-                onValueChange={(v) => setProcedureForm({ ...procedureForm, status: v })}
-              >
-                <SelectTrigger><SelectValue /></SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="planned">Planned</SelectItem>
-                  <SelectItem value="in-progress">In Progress</SelectItem>
-                  <SelectItem value="completed">Completed</SelectItem>
-                </SelectContent>
-              </Select>
             </div>
             <div>
               <Label>Date</Label>

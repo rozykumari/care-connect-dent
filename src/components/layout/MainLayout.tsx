@@ -1,5 +1,7 @@
+import { memo } from "react";
 import { SidebarProvider, SidebarTrigger } from "@/components/ui/sidebar";
 import { AppSidebar } from "./AppSidebar";
+import { Breadcrumb } from "@/components/Breadcrumb";
 import { useUserRole } from "@/hooks/useUserRole";
 import { useAuth } from "@/hooks/useAuth";
 import { Button } from "@/components/ui/button";
@@ -8,11 +10,15 @@ import { Link } from "react-router-dom";
 
 interface MainLayoutProps {
   children: React.ReactNode;
+  showBreadcrumb?: boolean;
 }
 
-export function MainLayout({ children }: MainLayoutProps) {
+export const MainLayout = memo(function MainLayout({ 
+  children, 
+  showBreadcrumb = true 
+}: MainLayoutProps) {
   const { user, signOut } = useAuth();
-  const { isDoctor, isPatient } = useUserRole();
+  const { isPatient } = useUserRole();
 
   return (
     <SidebarProvider defaultOpen={true}>
@@ -43,10 +49,11 @@ export function MainLayout({ children }: MainLayoutProps) {
             </div>
           </header>
           <div className="container mx-auto p-4 md:p-6 max-w-7xl flex-1 print:p-0 print:max-w-none">
+            {showBreadcrumb && <Breadcrumb />}
             {children}
           </div>
         </main>
       </div>
     </SidebarProvider>
   );
-}
+});

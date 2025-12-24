@@ -1,4 +1,5 @@
 import { MainLayout } from "@/components/layout/MainLayout";
+import { DashboardSEO } from "@/components/SEO";
 import { StatsCard } from "@/components/dashboard/StatsCard";
 import { AppointmentChart } from "@/components/dashboard/AppointmentChart";
 import { TodayAppointments } from "@/components/dashboard/TodayAppointments";
@@ -16,7 +17,9 @@ const Dashboard = () => {
   const totalRevenue = completedPayments.reduce((sum, p) => sum + p.amount, 0);
 
   return (
-    <MainLayout>
+    <>
+      <DashboardSEO />
+      <MainLayout>
       <div className="space-y-6 animate-fade-in">
         {/* Header */}
         <div className="flex items-center justify-between">
@@ -71,6 +74,7 @@ const Dashboard = () => {
         <RecentPatients />
       </div>
     </MainLayout>
+    </>
   );
 };
 

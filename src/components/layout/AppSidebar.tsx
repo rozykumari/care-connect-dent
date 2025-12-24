@@ -7,6 +7,7 @@ import {
   LogOut,
   User,
   Clock,
+  Package,
 } from "lucide-react";
 import { NavLink } from "@/components/NavLink";
 import { useSidebar } from "@/components/ui/sidebar";
@@ -33,6 +34,7 @@ const doctorMenuItems = [
   { title: "Patients", url: "/patients", icon: Users },
   { title: "Patient Management", url: "/doctor", icon: Stethoscope },
   { title: "Availability", url: "/doctor/availability", icon: Clock },
+  { title: "Inventory", url: "/doctor/inventory", icon: Package },
   { title: "Payments", url: "/payments", icon: CreditCard },
 ];
 

@@ -96,7 +96,7 @@ export function AppSidebar() {
                     <SidebarMenuButton asChild>
                       <NavLink
                         to={item.url}
-                        end={item.url === "/"}
+                        end={item.url === "/" || item.url === "/doctor"}
                         onClick={handleNavClick}
                         className={cn(
                           "flex items-center gap-3 px-3 py-2 rounded-lg transition-colors",

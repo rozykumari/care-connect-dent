@@ -16,11 +16,11 @@ export function MainLayout({ children }: MainLayoutProps) {
 
   return (
     <SidebarProvider defaultOpen={true}>
-      <div className="min-h-screen flex w-full bg-background">
+      <div className="min-h-screen flex w-full bg-background print:block print:min-h-0">
         <AppSidebar />
-        <main className="flex-1 overflow-auto flex flex-col">
-          {/* Header with sidebar trigger - visible on all screen sizes */}
-          <header className="sticky top-0 z-40 flex h-14 items-center gap-4 border-b bg-background px-4">
+        <main className="flex-1 overflow-auto flex flex-col print:overflow-visible">
+          {/* Header with sidebar trigger - hidden on print */}
+          <header className="sticky top-0 z-40 flex h-14 items-center gap-4 border-b bg-background px-4 print:hidden">
             <SidebarTrigger className="h-8 w-8">
               <Menu className="h-5 w-5" />
             </SidebarTrigger>
@@ -42,7 +42,7 @@ export function MainLayout({ children }: MainLayoutProps) {
               )}
             </div>
           </header>
-          <div className="container mx-auto p-4 md:p-6 max-w-7xl flex-1">
+          <div className="container mx-auto p-4 md:p-6 max-w-7xl flex-1 print:p-0 print:max-w-none">
             {children}
           </div>
         </main>

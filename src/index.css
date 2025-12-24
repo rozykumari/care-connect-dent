@@ -135,39 +135,61 @@
 
 /* Print Styles */
 @media print {
-  /* Hide sidebar and navigation elements */
+  /* Hide sidebar, header, navigation, and UI elements */
+  [data-sidebar="sidebar"],
   [data-sidebar],
-  .sidebar,
-  header,
+  aside,
   nav,
-  .print\\:hidden {
+  .print\:hidden,
+  header:not(.print-header) {
     display: none !important;
+    visibility: hidden !important;
+    width: 0 !important;
+    height: 0 !important;
+    overflow: hidden !important;
   }
 
-  /* Reset body and main content */
-  body {
+  /* Reset body */
+  html, body {
     background: white !important;
     color: black !important;
-    font-size: 12pt !important;
+    font-size: 11pt !important;
+    -webkit-print-color-adjust: exact !important;
+    print-color-adjust: exact !important;
   }
 
-  main {
+  /* Main content should take full width */
+  main,
+  .flex-1 {
+    width: 100% !important;
+    max-width: 100% !important;
+    margin: 0 !important;
+    padding: 0 !important;
+  }
+
+  /* Container reset */
+  .container {
+    max-width: 100% !important;
     padding: 0 !important;
     margin: 0 !important;
-    width: 100% !important;
   }
 
   /* Show print-only elements */
-  .print\\:block {
+  .print\:block {
     display: block !important;
   }
 
+  /* Hide print:hidden elements */
+  .print\:hidden {
+    display: none !important;
+  }
+
   /* Card styling for print */
-  .print\\:border-0 {
+  .print\:border-0 {
     border: none !important;
   }
 
-  .print\\:shadow-none {
+  .print\:shadow-none {
     box-shadow: none !important;
   }
 
@@ -188,5 +210,20 @@
   @page {
     margin: 1cm;
     size: A4;
+  }
+
+  /* Fix flex layouts for print */
+  .min-h-screen {
+    min-height: auto !important;
+  }
+
+  .flex {
+    display: block !important;
+  }
+
+  /* Ensure content is visible */
+  .overflow-auto,
+  .overflow-hidden {
+    overflow: visible !important;
   }
 }

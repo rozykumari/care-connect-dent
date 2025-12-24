@@ -57,7 +57,7 @@ export function AppSidebar() {
   return (
     <Sidebar
       className={cn(
-        "border-r border-sidebar-border bg-sidebar transition-all duration-300"
+        "border-r border-sidebar-border bg-sidebar transition-all duration-300 print:hidden"
       )}
       collapsible="icon"
     >

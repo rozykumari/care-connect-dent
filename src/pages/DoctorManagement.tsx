@@ -474,29 +474,35 @@ const DoctorManagement = () => {
         {selectedPatient && (
           <div className="print:block">
             <Card className="print:border-0 print:shadow-none">
-              <CardContent className="p-4 md:p-6">
-                <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 md:gap-6">
+              <CardContent className="p-4 md:p-6 print:p-0">
+                <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 md:gap-6 print:grid-cols-3 print:gap-4">
                   {/* Patient Basic Info */}
                   <div className="space-y-3">
                     <div className="flex items-center gap-3">
-                      <div className="h-12 w-12 rounded-full bg-primary/10 flex items-center justify-center">
+                      <div className="h-12 w-12 rounded-full bg-primary/10 flex items-center justify-center print:hidden">
                         <User className="h-6 w-6 text-primary" />
                       </div>
                       <div>
-                        <h2 className="text-lg font-semibold">{selectedPatient.name}</h2>
+                        <h2 className="text-lg font-semibold print:text-base">Patient: {selectedPatient.name}</h2>
                         <p className="text-sm text-muted-foreground">ID: {selectedPatient.id.slice(0, 8)}...</p>
+                        {selectedPatient.phone && (
+                          <p className="text-sm text-muted-foreground">Phone: {selectedPatient.phone}</p>
+                        )}
                       </div>
                     </div>
                     {selectedPatient.address && (
                       <div className="flex items-start gap-2 text-sm">
-                        <MapPin className="h-4 w-4 text-muted-foreground mt-0.5" />
-                        <span className="text-muted-foreground">{selectedPatient.address}</span>
+                        <MapPin className="h-4 w-4 text-muted-foreground mt-0.5 print:hidden" />
+                        <span className="text-muted-foreground">
+                          <span className="hidden print:inline">Address: </span>
+                          {selectedPatient.address}
+                        </span>
                       </div>
                     )}
                   </div>
 
-                  {/* Allergies - Editable */}
-                  <div className="space-y-2">
+                  {/* Allergies - Editable, hide on print if empty */}
+                  <div className={`space-y-2 ${!selectedPatient.allergies ? 'print:hidden' : ''}`}>
                     <div className="flex items-center justify-between">
                       <Label className="flex items-center gap-2">
                         <AlertTriangle className="h-4 w-4 text-destructive" />
@@ -514,13 +520,13 @@ const DoctorManagement = () => {
                         <Edit2 className="h-3 w-3" />
                       </Button>
                     </div>
-                    <div className="p-2 bg-destructive/5 rounded-md min-h-[60px] text-sm">
-                      {selectedPatient.allergies || <span className="text-muted-foreground italic">No allergies recorded</span>}
+                    <div className="p-2 bg-destructive/5 rounded-md min-h-[60px] text-sm print:bg-transparent print:p-0 print:min-h-0">
+                      {selectedPatient.allergies || <span className="text-muted-foreground italic print:hidden">No allergies recorded</span>}
                     </div>
                   </div>
 
-                  {/* History - Editable */}
-                  <div className="space-y-2">
+                  {/* History - Editable, hide on print if empty */}
+                  <div className={`space-y-2 ${!selectedPatient.medical_history ? 'print:hidden' : ''}`}>
                     <div className="flex items-center justify-between">
                       <Label className="flex items-center gap-2">
                         <FileText className="h-4 w-4 text-primary" />
@@ -538,8 +544,8 @@ const DoctorManagement = () => {
                         <Edit2 className="h-3 w-3" />
                       </Button>
                     </div>
-                    <div className="p-2 bg-muted/50 rounded-md min-h-[60px] text-sm">
-                      {selectedPatient.medical_history || <span className="text-muted-foreground italic">No history recorded</span>}
+                    <div className="p-2 bg-muted/50 rounded-md min-h-[60px] text-sm print:bg-transparent print:p-0 print:min-h-0">
+                      {selectedPatient.medical_history || <span className="text-muted-foreground italic print:hidden">No history recorded</span>}
                     </div>
                   </div>
                 </div>
@@ -550,50 +556,50 @@ const DoctorManagement = () => {
 
         {/* Main Content - Only show when patient is selected */}
         {selectedPatient ? (
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 md:gap-6">
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 md:gap-6 print:grid-cols-2 print:gap-4">
             {/* Left Column */}
-            <div className="space-y-4">
-              {/* Symptoms */}
-              <Card className="print:border-0 print:shadow-none">
-                <CardHeader className="pb-3">
-                  <CardTitle className="text-base flex items-center gap-2">
-                    <Stethoscope className="h-4 w-4" />
+            <div className="space-y-4 print:space-y-2">
+              {/* Symptoms - hide on print if empty */}
+              <Card className={`print:border-0 print:shadow-none ${!symptoms ? 'print:hidden' : ''}`}>
+                <CardHeader className="pb-3 print:pb-1">
+                  <CardTitle className="text-base flex items-center gap-2 print:text-sm">
+                    <Stethoscope className="h-4 w-4 print:h-3 print:w-3" />
                     Symptoms
                   </CardTitle>
                 </CardHeader>
-                <CardContent>
+                <CardContent className="print:pt-0">
                   <Textarea 
                     placeholder="Enter patient symptoms..."
                     value={symptoms}
                     onChange={(e) => setSymptoms(e.target.value)}
-                    className="min-h-[80px] print:border-0"
+                    className="min-h-[80px] print:border-0 print:min-h-0 print:p-0 print:resize-none"
                   />
                 </CardContent>
               </Card>
 
-              {/* Examination */}
-              <Card className="print:border-0 print:shadow-none">
-                <CardHeader className="pb-3">
-                  <CardTitle className="text-base flex items-center gap-2">
-                    <Activity className="h-4 w-4" />
+              {/* Examination - hide on print if empty */}
+              <Card className={`print:border-0 print:shadow-none ${!examination ? 'print:hidden' : ''}`}>
+                <CardHeader className="pb-3 print:pb-1">
+                  <CardTitle className="text-base flex items-center gap-2 print:text-sm">
+                    <Activity className="h-4 w-4 print:h-3 print:w-3" />
                     Examination
                   </CardTitle>
                 </CardHeader>
-                <CardContent>
+                <CardContent className="print:pt-0">
                   <Textarea 
                     placeholder="Enter examination findings..."
                     value={examination}
                     onChange={(e) => setExamination(e.target.value)}
-                    className="min-h-[80px] print:border-0"
+                    className="min-h-[80px] print:border-0 print:min-h-0 print:p-0 print:resize-none"
                   />
                 </CardContent>
               </Card>
 
-              {/* Procedures */}
-              <Card className="print:border-0 print:shadow-none">
-                <CardHeader className="pb-3 flex flex-row items-center justify-between">
-                  <CardTitle className="text-base flex items-center gap-2">
-                    <Activity className="h-4 w-4" />
+              {/* Procedures - hide on print if empty */}
+              <Card className={`print:border-0 print:shadow-none ${procedures.length === 0 ? 'print:hidden' : ''}`}>
+                <CardHeader className="pb-3 flex flex-row items-center justify-between print:pb-1">
+                  <CardTitle className="text-base flex items-center gap-2 print:text-sm">
+                    <Activity className="h-4 w-4 print:h-3 print:w-3" />
                     Procedures
                   </CardTitle>
                   <Button 
@@ -605,23 +611,23 @@ const DoctorManagement = () => {
                     <Plus className="h-3 w-3 mr-1" /> Add
                   </Button>
                 </CardHeader>
-                <CardContent>
+                <CardContent className="print:pt-0">
                   {procedures.length === 0 ? (
-                    <p className="text-sm text-muted-foreground text-center py-4">No procedures</p>
+                    <p className="text-sm text-muted-foreground text-center py-4 print:hidden">No procedures</p>
                   ) : (
-                    <div className="space-y-2">
+                    <div className="space-y-2 print:space-y-1">
                       {procedures.map((proc) => (
-                        <div key={proc.id} className="flex items-center justify-between p-2 bg-muted/50 rounded-md">
+                        <div key={proc.id} className="flex items-center justify-between p-2 bg-muted/50 rounded-md print:bg-transparent print:p-1 print:border-b">
                           <div className="flex-1">
-                            <p className="text-sm font-medium">{proc.name}</p>
+                            <p className="text-sm font-medium print:text-xs">{proc.name}</p>
                             <div className="flex items-center gap-2 mt-1">
                               <Badge 
                                 variant={proc.status === 'completed' ? 'default' : proc.status === 'in-progress' ? 'secondary' : 'outline'} 
-                                className="text-xs capitalize"
+                                className="text-xs capitalize print:text-[10px]"
                               >
                                 {proc.status}
                               </Badge>
-                              {proc.date && <span className="text-xs text-muted-foreground">{proc.date}</span>}
+                              {proc.date && <span className="text-xs text-muted-foreground print:text-[10px]">{proc.date}</span>}
                             </div>
                           </div>
                           <Button 
@@ -640,12 +646,12 @@ const DoctorManagement = () => {
               </Card>
             </div>
 
-            {/* Right Column - Medicines */}
-            <div>
+            {/* Right Column - Medicines - hide on print if empty */}
+            <div className={`${prescriptions.length === 0 ? 'print:hidden' : ''}`}>
               <Card className="print:border-0 print:shadow-none">
-                <CardHeader className="pb-3 flex flex-row items-center justify-between">
-                  <CardTitle className="text-base flex items-center gap-2">
-                    <Pill className="h-4 w-4" />
+                <CardHeader className="pb-3 flex flex-row items-center justify-between print:pb-1">
+                  <CardTitle className="text-base flex items-center gap-2 print:text-sm">
+                    <Pill className="h-4 w-4 print:h-3 print:w-3" />
                     Medicines
                   </CardTitle>
                   <Button 
@@ -656,18 +662,19 @@ const DoctorManagement = () => {
                     <Plus className="h-3 w-3 mr-1" /> Add
                   </Button>
                 </CardHeader>
-                <CardContent>
-                  <ScrollArea className="h-[300px] md:h-[400px]">
+                <CardContent className="print:pt-0">
+                  <ScrollArea className="h-[300px] md:h-[400px] print:h-auto print:overflow-visible">
                     {prescriptions.length === 0 ? (
-                      <p className="text-sm text-muted-foreground text-center py-8">No medicines prescribed</p>
+                      <p className="text-sm text-muted-foreground text-center py-8 print:hidden">No medicines prescribed</p>
                     ) : (
-                      <div className="space-y-2 pr-2">
-                        {prescriptions.map((med) => (
-                          <div key={med.id} className="flex items-start justify-between p-3 border rounded-lg">
-                            <div className="space-y-1 flex-1">
-                              <p className="font-medium text-sm">{med.name}</p>
-                              <p className="text-xs text-muted-foreground">Dose: {med.dose}</p>
-                              <div className="pt-1">{renderTimingBadges(med)}</div>
+                      <div className="space-y-2 pr-2 print:space-y-1 print:pr-0">
+                        {prescriptions.map((med, index) => (
+                          <div key={med.id} className="flex items-start justify-between p-3 border rounded-lg print:p-1 print:border-0 print:border-b print:rounded-none">
+                            <div className="space-y-1 flex-1 print:space-y-0 print:flex print:items-center print:gap-2">
+                              <span className="hidden print:inline text-xs font-medium">{index + 1}.</span>
+                              <p className="font-medium text-sm print:text-xs print:inline">{med.name}</p>
+                              <p className="text-xs text-muted-foreground print:inline">- {med.dose}</p>
+                              <div className="pt-1 print:pt-0 print:inline print:ml-2">{renderTimingBadges(med)}</div>
                             </div>
                             <Button 
                               variant="ghost" 

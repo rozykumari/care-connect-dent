@@ -100,6 +100,51 @@ export type Database = {
         }
         Relationships: []
       }
+      inventory: {
+        Row: {
+          category: string
+          created_at: string
+          description: string | null
+          doctor_id: string
+          expiry_date: string | null
+          id: string
+          name: string
+          price: number
+          reorder_level: number
+          stock: number
+          unit: string
+          updated_at: string
+        }
+        Insert: {
+          category?: string
+          created_at?: string
+          description?: string | null
+          doctor_id: string
+          expiry_date?: string | null
+          id?: string
+          name: string
+          price?: number
+          reorder_level?: number
+          stock?: number
+          unit?: string
+          updated_at?: string
+        }
+        Update: {
+          category?: string
+          created_at?: string
+          description?: string | null
+          doctor_id?: string
+          expiry_date?: string | null
+          id?: string
+          name?: string
+          price?: number
+          reorder_level?: number
+          stock?: number
+          unit?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
       patient_allergies: {
         Row: {
           action_to_take: string | null

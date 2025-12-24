@@ -20,7 +20,7 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { format } from "date-fns";
-import { Plus, Search, User, Phone, Mail, Edit, Trash2 } from "lucide-react";
+import { Plus, Search, User, Phone, Mail, Edit, Trash2, FileText } from "lucide-react";
 import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
 import {
@@ -34,6 +34,7 @@ import {
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
 import { toast } from "sonner";
+import { PatientMedicalRecords } from "@/components/PatientMedicalRecords";
 
 interface Patient {
   id: string;
@@ -45,6 +46,7 @@ interface Patient {
   medical_history: string | null;
   allergies: string | null;
   created_at: string;
+  user_id: string | null;
 }
 
 const Patients = () => {
@@ -54,6 +56,8 @@ const Patients = () => {
   const [searchQuery, setSearchQuery] = useState("");
   const [editingPatient, setEditingPatient] = useState<Patient | null>(null);
   const [deleteId, setDeleteId] = useState<string | null>(null);
+  const [selectedPatientForRecords, setSelectedPatientForRecords] = useState<Patient | null>(null);
+  const [recordsDialogOpen, setRecordsDialogOpen] = useState(false);
 
   const [formData, setFormData] = useState({
     name: "",
@@ -336,7 +340,15 @@ const Patients = () => {
                             <User className="h-5 w-5 text-primary" />
                           </div>
                           <div>
-                            <p className="font-medium">{patient.name}</p>
+                            <button 
+                              onClick={() => {
+                                setSelectedPatientForRecords(patient);
+                                setRecordsDialogOpen(true);
+                              }}
+                              className="font-medium hover:text-primary hover:underline text-left"
+                            >
+                              {patient.name}
+                            </button>
                             {patient.allergies && (
                               <p className="text-xs text-destructive">
                                 Allergies: {patient.allergies}
@@ -369,6 +381,17 @@ const Patients = () => {
                       </TableCell>
                       <TableCell className="text-right">
                         <div className="flex items-center justify-end gap-2">
+                          <Button 
+                            variant="ghost" 
+                            size="icon" 
+                            onClick={() => {
+                              setSelectedPatientForRecords(patient);
+                              setRecordsDialogOpen(true);
+                            }}
+                            title="View medical records"
+                          >
+                            <FileText className="h-4 w-4" />
+                          </Button>
                           <Button variant="ghost" size="icon" onClick={() => handleEdit(patient)}>
                             <Edit className="h-4 w-4" />
                           </Button>
@@ -400,7 +423,15 @@ const Patients = () => {
                       <User className="h-5 w-5 text-primary" />
                     </div>
                     <div className="min-w-0">
-                      <p className="font-medium truncate">{patient.name}</p>
+                      <button 
+                        onClick={() => {
+                          setSelectedPatientForRecords(patient);
+                          setRecordsDialogOpen(true);
+                        }}
+                        className="font-medium truncate hover:text-primary hover:underline text-left"
+                      >
+                        {patient.name}
+                      </button>
                       <div className="flex items-center gap-2 text-sm text-muted-foreground mt-1">
                         <Phone className="h-3 w-3" />
                         <span>{patient.phone}</span>
@@ -449,6 +480,12 @@ const Patients = () => {
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
+
+      <PatientMedicalRecords 
+        patient={selectedPatientForRecords}
+        open={recordsDialogOpen}
+        onOpenChange={setRecordsDialogOpen}
+      />
     </MainLayout>
   );
 };

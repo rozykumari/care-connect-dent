@@ -14,6 +14,7 @@ import Prescriptions from "./pages/Prescriptions";
 import Enquiries from "./pages/Enquiries";
 import Payments from "./pages/Payments";
 import Inventory from "./pages/Inventory";
+import DoctorInventory from "./pages/DoctorInventory";
 import Reports from "./pages/Reports";
 import Auth from "./pages/Auth";
 import PatientProfile from "./pages/PatientProfile";
@@ -39,6 +40,7 @@ const App = () => (
             {/* Doctor Routes */}
             <Route path="/doctor" element={<DoctorRoute><DoctorManagement /></DoctorRoute>} />
             <Route path="/doctor/availability" element={<DoctorRoute><DoctorAvailability /></DoctorRoute>} />
+            <Route path="/doctor/inventory" element={<DoctorRoute><DoctorInventory /></DoctorRoute>} />
             <Route path="/" element={<DoctorRoute><Dashboard /></DoctorRoute>} />
             <Route path="/appointments" element={<DoctorRoute><Appointments /></DoctorRoute>} />
             <Route path="/patients" element={<DoctorRoute><Patients /></DoctorRoute>} />

@@ -343,61 +343,62 @@ const DoctorManagement = () => {
   return (
     <MainLayout>
       <div className="space-y-4 md:space-y-6 print:space-y-2" ref={printRef}>
-        {/* Print Header - Only visible when printing */}
-        <div className="hidden print:block mb-6">
-          <div className="border-b-2 border-primary pb-4 mb-4">
+        {/* Print Header - Professional Prescription Layout */}
+        <div className="hidden print:block print-prescription-header">
+          {/* Top Header with Doctor Info */}
+          <div className="bg-gradient-to-r from-blue-600 to-blue-700 text-white p-6 -mx-4 -mt-4 mb-6">
             <div className="flex items-start justify-between">
-              {/* Left Side - Logo & Hospital Name */}
-              <div className="flex items-center gap-4">
-                <div className="h-16 w-16 rounded-full bg-primary/10 flex items-center justify-center border-2 border-primary">
-                  <Building2 className="h-8 w-8 text-primary" />
-                </div>
-                <div>
-                  {CLINIC_CONFIG.hospitalName && (
-                    <h1 className="text-2xl font-bold text-primary">{CLINIC_CONFIG.hospitalName}</h1>
-                  )}
-                  {CLINIC_CONFIG.doctorName && (
-                    <p className="text-lg font-semibold">{CLINIC_CONFIG.doctorName}</p>
-                  )}
-                  {CLINIC_CONFIG.qualification && (
-                    <p className="text-sm text-muted-foreground">{CLINIC_CONFIG.qualification}</p>
-                  )}
-                  {CLINIC_CONFIG.registrationNo && (
-                    <p className="text-xs text-muted-foreground">Reg. No: {CLINIC_CONFIG.registrationNo}</p>
-                  )}
-                </div>
+              <div>
+                {CLINIC_CONFIG.doctorName && (
+                  <h1 className="text-2xl font-bold">{CLINIC_CONFIG.doctorName}</h1>
+                )}
+                {CLINIC_CONFIG.qualification && (
+                  <p className="text-blue-100 text-sm mt-1">{CLINIC_CONFIG.qualification}</p>
+                )}
+                {CLINIC_CONFIG.registrationNo && (
+                  <p className="text-blue-200 text-xs mt-1">Reg. No: {CLINIC_CONFIG.registrationNo}</p>
+                )}
               </div>
-              
-              {/* Right Side - Contact Info */}
-              <div className="text-right text-sm space-y-1">
-                {CLINIC_CONFIG.address && (
-                  <p className="flex items-center justify-end gap-2">
-                    <span>{CLINIC_CONFIG.address}</span>
-                    <MapPin className="h-3 w-3" />
-                  </p>
-                )}
-                {CLINIC_CONFIG.city && (
-                  <p>{CLINIC_CONFIG.city}</p>
-                )}
-                {CLINIC_CONFIG.phone && (
-                  <p className="flex items-center justify-end gap-2">
-                    <span>{CLINIC_CONFIG.phone}</span>
-                    <Phone className="h-3 w-3" />
-                  </p>
-                )}
-                {CLINIC_CONFIG.email && (
-                  <p className="flex items-center justify-end gap-2">
-                    <span>{CLINIC_CONFIG.email}</span>
-                    <Mail className="h-3 w-3" />
-                  </p>
-                )}
+              {/* Caduceus Symbol */}
+              <div className="text-blue-200">
+                <svg className="w-16 h-16" viewBox="0 0 64 64" fill="currentColor">
+                  <path d="M32 4c-1.1 0-2 .9-2 2v4c-4.4 0-8 3.6-8 8 0 3.3 2 6.1 4.9 7.3C24.3 27.5 22 30.5 22 34c0 3.3 2 6.1 4.9 7.3-2.6 2.2-4.9 5.2-4.9 8.7v8h4v-8c0-2.8 2.2-5 5-5h2c2.8 0 5 2.2 5 5v8h4v-8c0-3.5-2.3-6.5-4.9-8.7 2.9-1.2 4.9-4 4.9-7.3 0-3.5-2.3-6.5-4.9-8.7C39 24.1 42 21.3 42 18c0-4.4-3.6-8-8-8V6c0-1.1-.9-2-2-2zm-2 10h4c2.2 0 4 1.8 4 4s-1.8 4-4 4h-4c-2.2 0-4-1.8-4-4s1.8-4 4-4zm0 12h4c2.2 0 4 1.8 4 4s-1.8 4-4 4h-4c-2.2 0-4-1.8-4-4s1.8-4 4-4z"/>
+                </svg>
               </div>
             </div>
           </div>
-          
-          {/* Print Date */}
-          <div className="text-right text-xs text-muted-foreground mb-4">
-            Date: {new Date().toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' })}
+
+          {/* Patient Info Row */}
+          {selectedPatient && (
+            <div className="border-b border-gray-200 pb-4 mb-4">
+              <div className="grid grid-cols-2 gap-x-8 gap-y-2 text-sm">
+                <div className="flex">
+                  <span className="font-medium w-24">Patient Name:</span>
+                  <span className="border-b border-gray-300 flex-1">{selectedPatient.name}</span>
+                </div>
+                {selectedPatient.address && (
+                  <div className="flex">
+                    <span className="font-medium w-24">Address:</span>
+                    <span className="border-b border-gray-300 flex-1">{selectedPatient.address}</span>
+                  </div>
+                )}
+                <div className="flex">
+                  <span className="font-medium w-24">Date:</span>
+                  <span className="border-b border-gray-300 flex-1">{new Date().toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' })}</span>
+                </div>
+                {selectedPatient.allergies && (
+                  <div className="flex">
+                    <span className="font-medium w-24 text-red-600">Allergies:</span>
+                    <span className="border-b border-gray-300 flex-1 text-red-600">{selectedPatient.allergies}</span>
+                  </div>
+                )}
+              </div>
+            </div>
+          )}
+
+          {/* Rx Symbol */}
+          <div className="text-blue-600 text-5xl font-serif font-bold mb-4">
+            <span className="relative">R<sub className="text-3xl">x</sub></span>
           </div>
         </div>
 

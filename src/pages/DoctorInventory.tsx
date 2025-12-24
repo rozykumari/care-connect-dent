@@ -205,7 +205,7 @@ const DoctorInventory = () => {
     return matchesSearch && matchesCategory;
   });
 
-  const lowStockItems = inventory.filter((item) => item.stock <= item.reorder_level);
+  const lowStockItems = inventory.filter((item) => item.stock <= item.reorder_level && item.category !== "procedure" && item.category !== "examination");
   const categories = [...new Set(inventory.map((item) => item.category))];
 
   const getCategoryIcon = (category: string) => {

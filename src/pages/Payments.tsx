@@ -74,6 +74,8 @@ const Payments = () => {
   const [prescribedItems, setPrescribedItems] = useState<PrescribedItem[]>([]);
   const [customItems, setCustomItems] = useState<PrescribedItem[]>([]);
   const [newCustomItem, setNewCustomItem] = useState({ name: '', price: 0 });
+  const [inventorySearchOpen, setInventorySearchOpen] = useState(false);
+  const [inventorySearch, setInventorySearch] = useState("");
 
   const [formData, setFormData] = useState({
     patientId: "",
@@ -254,11 +256,39 @@ const Payments = () => {
     setCustomItems(items => items.filter(item => item.id !== id));
   };
 
+  const addFromInventory = (item: InventoryItem) => {
+    // Check if already added
+    const existsInPrescribed = prescribedItems.some(p => p.inventoryId === item.id);
+    const existsInCustom = customItems.some(c => c.inventoryId === item.id);
+    
+    if (existsInPrescribed || existsInCustom) {
+      toast.info("Item already added");
+      return;
+    }
+
+    setCustomItems([...customItems, {
+      id: `inv-${item.id}-${Date.now()}`,
+      name: item.name,
+      type: item.category as 'medicine' | 'procedure' | 'examination',
+      price: Number(item.price),
+      selected: true,
+      quantity: item.category === 'medicine' ? 1 : undefined,
+      inventoryId: item.id
+    }]);
+    setInventorySearchOpen(false);
+    setInventorySearch("");
+  };
+
+  const filteredInventoryForSearch = inventoryItems.filter(item =>
+    item.name.toLowerCase().includes(inventorySearch.toLowerCase()) ||
+    item.category.toLowerCase().includes(inventorySearch.toLowerCase())
+  );
+
   const calculateTotal = () => {
     const prescribedTotal = prescribedItems
       .filter(item => item.selected)
       .reduce((sum, item) => sum + (item.price * (item.quantity || 1)), 0);
-    const customTotal = customItems.reduce((sum, item) => sum + item.price, 0);
+    const customTotal = customItems.reduce((sum, item) => sum + (item.price * (item.quantity || 1)), 0);
     return prescribedTotal + customTotal;
   };
 
@@ -294,19 +324,20 @@ const Payments = () => {
 
       if (error) throw error;
 
-      // Deduct inventory for medicines with inventoryId
-      const medicinesToDeduct = selectedPrescribed.filter(
-        item => item.type === 'medicine' && item.inventoryId && item.quantity
-      );
+      // Deduct inventory for all items with inventoryId (both prescribed and custom)
+      const itemsToDeduct = [
+        ...selectedPrescribed.filter(item => item.inventoryId),
+        ...customItems.filter(item => item.inventoryId)
+      ];
 
-      for (const med of medicinesToDeduct) {
-        const inventoryItem = inventoryItems.find(inv => inv.id === med.inventoryId);
-        if (inventoryItem) {
-          const newStock = Math.max(0, inventoryItem.stock - (med.quantity || 1));
+      for (const item of itemsToDeduct) {
+        const inventoryItem = inventoryItems.find(inv => inv.id === item.inventoryId);
+        if (inventoryItem && item.type === 'medicine') {
+          const newStock = Math.max(0, inventoryItem.stock - (item.quantity || 1));
           await supabase
             .from("inventory")
             .update({ stock: newStock })
-            .eq("id", med.inventoryId);
+            .eq("id", item.inventoryId);
         }
       }
 
@@ -472,6 +503,53 @@ const Payments = () => {
                         )}
                       </div>
 
+                      {/* Add from Inventory */}
+                      <div className="space-y-3">
+                        <Label className="text-sm font-medium">Add from Inventory</Label>
+                        <Popover open={inventorySearchOpen} onOpenChange={setInventorySearchOpen}>
+                          <PopoverTrigger asChild>
+                            <Button variant="outline" className="w-full justify-start">
+                              <Search className="h-4 w-4 mr-2" />
+                              Search inventory items...
+                            </Button>
+                          </PopoverTrigger>
+                          <PopoverContent className="w-80 p-0" align="start">
+                            <Command>
+                              <CommandInput
+                                placeholder="Search medicines, procedures..."
+                                value={inventorySearch}
+                                onValueChange={setInventorySearch}
+                              />
+                              <CommandList>
+                                <CommandEmpty>No items found</CommandEmpty>
+                                <CommandGroup>
+                                  {filteredInventoryForSearch.slice(0, 10).map((item) => (
+                                    <CommandItem
+                                      key={item.id}
+                                      value={item.id}
+                                      onSelect={() => addFromInventory(item)}
+                                    >
+                                      <div className="flex-1">
+                                        <p className="font-medium">{item.name}</p>
+                                        <div className="flex items-center gap-2">
+                                          <Badge variant="outline" className="text-xs capitalize">
+                                            {item.category}
+                                          </Badge>
+                                          <span className="text-xs text-muted-foreground">
+                                            Stock: {item.stock}
+                                          </span>
+                                        </div>
+                                      </div>
+                                      <span className="text-sm font-medium">₹{item.price}</span>
+                                    </CommandItem>
+                                  ))}
+                                </CommandGroup>
+                              </CommandList>
+                            </Command>
+                          </PopoverContent>
+                        </Popover>
+                      </div>
+
                       {/* Custom Items */}
                       <div className="space-y-3">
                         <Label className="text-sm">Add Custom Item</Label>
@@ -496,19 +574,36 @@ const Payments = () => {
                         {customItems.length > 0 && (
                           <div className="space-y-2">
                             {customItems.map((item) => (
-                              <div key={item.id} className="flex items-center justify-between p-2 rounded bg-muted/50">
-                                <span className="text-sm">{item.name}</span>
-                                <div className="flex items-center gap-2">
-                                  <span className="text-sm font-medium">₹{item.price}</span>
-                                  <Button 
-                                    variant="ghost" 
-                                    size="icon" 
-                                    className="h-6 w-6"
-                                    onClick={() => removeCustomItem(item.id)}
-                                  >
-                                    <Trash2 className="h-3 w-3 text-destructive" />
-                                  </Button>
+                              <div key={item.id} className="flex items-center gap-2 p-2 rounded bg-muted/50">
+                                <div className="flex-1 min-w-0">
+                                  <span className="text-sm font-medium">{item.name}</span>
+                                  <Badge variant="outline" className="ml-2 text-xs capitalize">
+                                    {item.type}
+                                  </Badge>
                                 </div>
+                                {item.type === 'medicine' && item.quantity !== undefined && (
+                                  <Input
+                                    type="number"
+                                    className="w-14 text-center"
+                                    value={item.quantity}
+                                    onChange={(e) => {
+                                      const qty = parseInt(e.target.value) || 1;
+                                      setCustomItems(items => 
+                                        items.map(i => i.id === item.id ? { ...i, quantity: Math.max(1, qty) } : i)
+                                      );
+                                    }}
+                                    min={1}
+                                  />
+                                )}
+                                <span className="text-sm font-medium">₹{item.price * (item.quantity || 1)}</span>
+                                <Button 
+                                  variant="ghost" 
+                                  size="icon" 
+                                  className="h-6 w-6"
+                                  onClick={() => removeCustomItem(item.id)}
+                                >
+                                  <Trash2 className="h-3 w-3 text-destructive" />
+                                </Button>
                               </div>
                             ))}
                           </div>

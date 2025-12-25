@@ -36,6 +36,7 @@ const doctorMenuItems = [
   { title: "Availability", url: "/doctor/availability", icon: Clock },
   { title: "Inventory", url: "/doctor/inventory", icon: Package },
   { title: "Payments", url: "/payments", icon: CreditCard },
+  { title: "My Profile", url: "/profile", icon: User },
 ];
 
 const patientMenuItems = [

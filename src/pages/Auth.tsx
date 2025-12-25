@@ -29,12 +29,14 @@ const signupSchema = z.object({
 
 const Auth = () => {
   const navigate = useNavigate();
-  const { user, loading: authLoading, signIn, signUp, signInWithGoogle } = useAuth();
+  const { user, loading: authLoading, signIn, signUp, signInWithGoogle, resendConfirmationEmail } = useAuth();
   const { isDoctor, loading: roleLoading } = useUserRole();
+  const [activeTab, setActiveTab] = useState<'login' | 'signup'>('login');
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [isResending, setIsResending] = useState(false);
   const [signupSuccess, setSignupSuccess] = useState(false);
   const [signupEmail, setSignupEmail] = useState('');
-  
+
   const [loginForm, setLoginForm] = useState({ email: '', password: '' });
   const [signupForm, setSignupForm] = useState({ fullName: '', email: '', password: '', confirmPassword: '' });
   const [errors, setErrors] = useState<Record<string, string>>({});
@@ -71,6 +73,16 @@ const Auth = () => {
     setIsSubmitting(false);
 
     if (error) {
+      const msg = error.message.toLowerCase();
+
+      if (msg.includes('email not confirmed')) {
+        setSignupEmail(loginForm.email);
+        setSignupSuccess(true);
+        setActiveTab('signup');
+        toast.error('Please verify your email before signing in.');
+        return;
+      }
+
       if (error.message.includes('Invalid login credentials')) {
         toast.error('Invalid email or password');
       } else {
@@ -144,7 +156,7 @@ const Auth = () => {
           <CardDescription>Patient Portal</CardDescription>
         </CardHeader>
         <CardContent>
-          <Tabs defaultValue="login" className="w-full">
+          <Tabs value={activeTab} onValueChange={(v) => setActiveTab(v as 'login' | 'signup')} className="w-full">
             <TabsList className="grid w-full grid-cols-2">
               <TabsTrigger value="login">Login</TabsTrigger>
               <TabsTrigger value="signup">Sign Up</TabsTrigger>
@@ -196,8 +208,38 @@ const Auth = () => {
                     Please check your inbox and click the confirmation link to activate your account.
                   </p>
                   <div className="pt-4 space-y-2">
-                    <Button 
-                      variant="outline" 
+                    <Button
+                      className="w-full"
+                      onClick={() => {
+                        setActiveTab('login');
+                        setLoginForm({ email: signupEmail, password: '' });
+                      }}
+                    >
+                      I’ve verified my email — Sign in
+                    </Button>
+
+                    <Button
+                      variant="outline"
+                      className="w-full"
+                      disabled={isResending}
+                      onClick={async () => {
+                        if (!signupEmail) return;
+                        setIsResending(true);
+                        const { error } = await resendConfirmationEmail(signupEmail);
+                        setIsResending(false);
+
+                        if (error) {
+                          toast.error(error.message);
+                        } else {
+                          toast.success('Verification email sent. Please check your inbox.');
+                        }
+                      }}
+                    >
+                      {isResending ? 'Resending…' : 'Resend verification email'}
+                    </Button>
+
+                    <Button
+                      variant="outline"
                       className="w-full"
                       onClick={() => {
                         setSignupSuccess(false);
@@ -206,8 +248,9 @@ const Auth = () => {
                     >
                       Back to Sign Up
                     </Button>
+
                     <p className="text-xs text-muted-foreground">
-                      Didn't receive the email? Check your spam folder or try signing up again.
+                      If you don’t see a button in the email, open it and click the confirmation link (some email apps hide styled buttons).
                     </p>
                   </div>
                 </div>

@@ -32,6 +32,8 @@ const Auth = () => {
   const { user, loading: authLoading, signIn, signUp, signInWithGoogle } = useAuth();
   const { isDoctor, loading: roleLoading } = useUserRole();
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [signupSuccess, setSignupSuccess] = useState(false);
+  const [signupEmail, setSignupEmail] = useState('');
   
   const [loginForm, setLoginForm] = useState({ email: '', password: '' });
   const [signupForm, setSignupForm] = useState({ fullName: '', email: '', password: '', confirmPassword: '' });
@@ -102,10 +104,14 @@ const Auth = () => {
     if (error) {
       if (error.message.includes('already registered')) {
         toast.error('This email is already registered. Please login instead.');
+      } else if (error.message.includes('rate limit')) {
+        toast.error('Too many attempts. Please wait a moment and try again.');
       } else {
         toast.error(error.message);
       }
     } else {
+      setSignupEmail(signupForm.email);
+      setSignupSuccess(true);
       toast.success('Account created successfully!');
     }
   };
@@ -175,55 +181,87 @@ const Auth = () => {
             </TabsContent>
             
             <TabsContent value="signup">
-              <form onSubmit={handleSignup} className="space-y-4 mt-4">
-                <div className="space-y-2">
-                  <Label htmlFor="signup-name">Full Name</Label>
-                  <Input
-                    id="signup-name"
-                    type="text"
-                    placeholder="John Doe"
-                    value={signupForm.fullName}
-                    onChange={(e) => setSignupForm({ ...signupForm, fullName: e.target.value })}
-                  />
-                  {errors.fullName && <p className="text-sm text-destructive">{errors.fullName}</p>}
+              {signupSuccess ? (
+                <div className="mt-4 p-6 text-center space-y-4">
+                  <div className="mx-auto w-16 h-16 bg-primary/10 rounded-full flex items-center justify-center">
+                    <svg className="w-8 h-8 text-primary" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+                    </svg>
+                  </div>
+                  <h3 className="text-lg font-semibold text-foreground">Account Created Successfully!</h3>
+                  <p className="text-sm text-muted-foreground">
+                    We've sent a confirmation email to <strong className="text-foreground">{signupEmail}</strong>
+                  </p>
+                  <p className="text-sm text-muted-foreground">
+                    Please check your inbox and click the confirmation link to activate your account.
+                  </p>
+                  <div className="pt-4 space-y-2">
+                    <Button 
+                      variant="outline" 
+                      className="w-full"
+                      onClick={() => {
+                        setSignupSuccess(false);
+                        setSignupForm({ fullName: '', email: '', password: '', confirmPassword: '' });
+                      }}
+                    >
+                      Back to Sign Up
+                    </Button>
+                    <p className="text-xs text-muted-foreground">
+                      Didn't receive the email? Check your spam folder or try signing up again.
+                    </p>
+                  </div>
                 </div>
-                <div className="space-y-2">
-                  <Label htmlFor="signup-email">Email</Label>
-                  <Input
-                    id="signup-email"
-                    type="email"
-                    placeholder="patient@example.com"
-                    value={signupForm.email}
-                    onChange={(e) => setSignupForm({ ...signupForm, email: e.target.value })}
-                  />
-                  {errors.email && <p className="text-sm text-destructive">{errors.email}</p>}
-                </div>
-                <div className="space-y-2">
-                  <Label htmlFor="signup-password">Password</Label>
-                  <Input
-                    id="signup-password"
-                    type="password"
-                    placeholder="••••••••"
-                    value={signupForm.password}
-                    onChange={(e) => setSignupForm({ ...signupForm, password: e.target.value })}
-                  />
-                  {errors.password && <p className="text-sm text-destructive">{errors.password}</p>}
-                </div>
-                <div className="space-y-2">
-                  <Label htmlFor="signup-confirm">Confirm Password</Label>
-                  <Input
-                    id="signup-confirm"
-                    type="password"
-                    placeholder="••••••••"
-                    value={signupForm.confirmPassword}
-                    onChange={(e) => setSignupForm({ ...signupForm, confirmPassword: e.target.value })}
-                  />
-                  {errors.confirmPassword && <p className="text-sm text-destructive">{errors.confirmPassword}</p>}
-                </div>
-                <Button type="submit" className="w-full" disabled={isSubmitting}>
-                  {isSubmitting ? 'Creating account...' : 'Create Account'}
-                </Button>
-              </form>
+              ) : (
+                <form onSubmit={handleSignup} className="space-y-4 mt-4">
+                  <div className="space-y-2">
+                    <Label htmlFor="signup-name">Full Name</Label>
+                    <Input
+                      id="signup-name"
+                      type="text"
+                      placeholder="John Doe"
+                      value={signupForm.fullName}
+                      onChange={(e) => setSignupForm({ ...signupForm, fullName: e.target.value })}
+                    />
+                    {errors.fullName && <p className="text-sm text-destructive">{errors.fullName}</p>}
+                  </div>
+                  <div className="space-y-2">
+                    <Label htmlFor="signup-email">Email</Label>
+                    <Input
+                      id="signup-email"
+                      type="email"
+                      placeholder="patient@example.com"
+                      value={signupForm.email}
+                      onChange={(e) => setSignupForm({ ...signupForm, email: e.target.value })}
+                    />
+                    {errors.email && <p className="text-sm text-destructive">{errors.email}</p>}
+                  </div>
+                  <div className="space-y-2">
+                    <Label htmlFor="signup-password">Password</Label>
+                    <Input
+                      id="signup-password"
+                      type="password"
+                      placeholder="••••••••"
+                      value={signupForm.password}
+                      onChange={(e) => setSignupForm({ ...signupForm, password: e.target.value })}
+                    />
+                    {errors.password && <p className="text-sm text-destructive">{errors.password}</p>}
+                  </div>
+                  <div className="space-y-2">
+                    <Label htmlFor="signup-confirm">Confirm Password</Label>
+                    <Input
+                      id="signup-confirm"
+                      type="password"
+                      placeholder="••••••••"
+                      value={signupForm.confirmPassword}
+                      onChange={(e) => setSignupForm({ ...signupForm, confirmPassword: e.target.value })}
+                    />
+                    {errors.confirmPassword && <p className="text-sm text-destructive">{errors.confirmPassword}</p>}
+                  </div>
+                  <Button type="submit" className="w-full" disabled={isSubmitting}>
+                    {isSubmitting ? 'Creating account...' : 'Create Account'}
+                  </Button>
+                </form>
+              )}
             </TabsContent>
           </Tabs>
           

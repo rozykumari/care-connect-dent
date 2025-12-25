@@ -20,6 +20,7 @@ export type Database = {
           date: string
           doctor_id: string
           duration: number
+          family_member_id: string | null
           id: string
           notes: string | null
           patient_id: string
@@ -33,6 +34,7 @@ export type Database = {
           date: string
           doctor_id: string
           duration?: number
+          family_member_id?: string | null
           id?: string
           notes?: string | null
           patient_id: string
@@ -46,6 +48,7 @@ export type Database = {
           date?: string
           doctor_id?: string
           duration?: number
+          family_member_id?: string | null
           id?: string
           notes?: string | null
           patient_id?: string
@@ -55,6 +58,13 @@ export type Database = {
           updated_at?: string
         }
         Relationships: [
+          {
+            foreignKeyName: "appointments_family_member_id_fkey"
+            columns: ["family_member_id"]
+            isOneToOne: false
+            referencedRelation: "family_members"
+            referencedColumns: ["id"]
+          },
           {
             foreignKeyName: "appointments_patient_id_fkey"
             columns: ["patient_id"]
@@ -99,6 +109,44 @@ export type Database = {
           updated_at?: string
         }
         Relationships: []
+      }
+      family_members: {
+        Row: {
+          created_at: string
+          date_of_birth: string | null
+          id: string
+          name: string
+          patient_id: string
+          relationship: string
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          date_of_birth?: string | null
+          id?: string
+          name: string
+          patient_id: string
+          relationship: string
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          date_of_birth?: string | null
+          id?: string
+          name?: string
+          patient_id?: string
+          relationship?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "family_members_patient_id_fkey"
+            columns: ["patient_id"]
+            isOneToOne: false
+            referencedRelation: "patients"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       inventory: {
         Row: {

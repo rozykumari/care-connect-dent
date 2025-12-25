@@ -12,7 +12,7 @@ import { Separator } from '@/components/ui/separator';
 import { User, Pill, Activity, AlertTriangle, Save, Phone, MapPin, Calendar } from 'lucide-react';
 import { toast } from 'sonner';
 import { format } from 'date-fns';
-
+import { FamilyMembers } from '@/components/FamilyMembers';
 interface Profile {
   full_name: string | null;
   phone: string | null;
@@ -143,6 +143,19 @@ const PatientProfile = () => {
 
     if (!/^\d{10}$/.test(editForm.phone)) {
       toast.error('Please enter a valid 10-digit mobile number');
+      return;
+    }
+
+    // Check if phone is unique (exclude current patient)
+    const { data: existingPatient } = await supabase
+      .from('patients')
+      .select('id')
+      .eq('phone', editForm.phone)
+      .neq('id', patient?.id || '')
+      .maybeSingle();
+
+    if (existingPatient) {
+      toast.error('This mobile number is already registered with another patient');
       return;
     }
 
@@ -292,6 +305,11 @@ const PatientProfile = () => {
             </Button>
           </CardContent>
         </Card>
+
+        {/* Family Members Section */}
+        {patient && (
+          <FamilyMembers patientId={patient.id} />
+        )}
 
         <Separator />
 

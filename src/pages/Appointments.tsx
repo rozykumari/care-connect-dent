@@ -49,7 +49,13 @@ interface Appointment {
   type: string;
   status: string;
   notes?: string;
+  family_member_id?: string;
   patients?: Patient;
+  family_members?: {
+    id: string;
+    name: string;
+    relationship: string;
+  };
 }
 
 const appointmentTypes = [
@@ -112,7 +118,7 @@ const Appointments = () => {
     try {
       const { data, error } = await supabase
         .from("appointments")
-        .select(`*, patients(id, name, phone, email)`)
+        .select(`*, patients(id, name, phone, email), family_members(id, name, relationship)`)
         .order("date", { ascending: true });
 
       if (error) throw error;
@@ -176,7 +182,25 @@ const Appointments = () => {
   const handleNewPatientSubmit = async () => {
     if (!newPatientData.name || !newPatientData.phone) return;
 
+    // Validate phone - must be 10 digits
+    if (!/^\d{10}$/.test(newPatientData.phone)) {
+      toast.error("Please enter a valid 10-digit mobile number");
+      return;
+    }
+
     try {
+      // Check if phone already exists
+      const { data: existingPatient } = await supabase
+        .from("patients")
+        .select("id")
+        .eq("phone", newPatientData.phone)
+        .maybeSingle();
+
+      if (existingPatient) {
+        toast.error("This mobile number is already registered with another patient");
+        return;
+      }
+
       const { data, error } = await supabase
         .from("patients")
         .insert({
@@ -239,8 +263,25 @@ const Appointments = () => {
   const filteredAppointments = appointments.filter(
     (apt) =>
       apt.patients?.name?.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      apt.patients?.phone?.includes(searchQuery) ||
+      apt.family_members?.name?.toLowerCase().includes(searchQuery.toLowerCase()) ||
       apt.type.toLowerCase().includes(searchQuery.toLowerCase())
   );
+
+  // Helper to display patient name with family member info
+  const getPatientDisplay = (apt: Appointment) => {
+    if (apt.family_members) {
+      return `${apt.family_members.name} (${apt.family_members.relationship})`;
+    }
+    return apt.patients?.name || 'Unknown';
+  };
+
+  const getPatientSubDisplay = (apt: Appointment) => {
+    if (apt.family_members && apt.patients) {
+      return `via ${apt.patients.name} - ${apt.patients.phone}`;
+    }
+    return apt.patients?.phone || '';
+  };
 
   const timeSlots = [
     "09:00", "09:30", "10:00", "10:30", "11:00", "11:30",
@@ -479,11 +520,14 @@ const Appointments = () => {
                 />
               </div>
               <div className="space-y-2">
-                <Label>Phone *</Label>
+                <Label>Phone * (10 digits)</Label>
                 <Input
-                  placeholder="+91 98765 43210"
+                  type="tel"
+                  inputMode="numeric"
+                  maxLength={10}
+                  placeholder="9876543210"
                   value={newPatientData.phone}
-                  onChange={(e) => setNewPatientData({ ...newPatientData, phone: e.target.value })}
+                  onChange={(e) => setNewPatientData({ ...newPatientData, phone: e.target.value.replace(/\D/g, '') })}
                 />
               </div>
               <div className="space-y-2">
@@ -600,7 +644,7 @@ const Appointments = () => {
                           key={apt.id}
                           className="mt-1 text-xs p-1 rounded bg-primary/20 text-primary truncate"
                         >
-                          {apt.time} - {apt.patients?.name}
+                        {apt.time} - {getPatientDisplay(apt)}
                         </div>
                       ))}
                       {dayAppointments.length > 2 && (
@@ -628,8 +672,11 @@ const Appointments = () => {
                         {dayAppointments.map((apt) => (
                           <div key={apt.id} className="flex items-center justify-between p-2 bg-secondary/50 rounded">
                             <div>
-                              <p className="text-sm font-medium">{apt.patients?.name}</p>
+                              <p className="text-sm font-medium">{getPatientDisplay(apt)}</p>
                               <p className="text-xs text-muted-foreground">{apt.time} - {apt.type}</p>
+                              {apt.family_members && (
+                                <p className="text-xs text-muted-foreground">{getPatientSubDisplay(apt)}</p>
+                              )}
                             </div>
                             <Badge className={statusColors[apt.status]}>{apt.status}</Badge>
                           </div>
@@ -674,7 +721,12 @@ const Appointments = () => {
                             </div>
                             <div className="flex items-center gap-2">
                               <User className="h-3 w-3 text-muted-foreground" />
-                              <span className="text-sm truncate">{apt.patients?.name}</span>
+                              <div>
+                                <span className="text-sm truncate">{getPatientDisplay(apt)}</span>
+                                {apt.family_members && (
+                                  <p className="text-xs text-muted-foreground">{getPatientSubDisplay(apt)}</p>
+                                )}
+                              </div>
                             </div>
                             <Badge className={cn("mt-2 text-xs", statusColors[apt.status])}>
                               {apt.status}
@@ -710,8 +762,11 @@ const Appointments = () => {
                                 <p className="text-sm font-medium">{apt.time}</p>
                               </div>
                               <div>
-                                <p className="text-sm font-medium">{apt.patients?.name}</p>
+                                <p className="text-sm font-medium">{getPatientDisplay(apt)}</p>
                                 <p className="text-xs text-muted-foreground">{apt.type}</p>
+                                {apt.family_members && (
+                                  <p className="text-xs text-muted-foreground">{getPatientSubDisplay(apt)}</p>
+                                )}
                               </div>
                             </div>
                             <Badge className={cn("text-xs", statusColors[apt.status])}>

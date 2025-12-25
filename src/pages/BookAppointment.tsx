@@ -14,7 +14,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Calendar } from "@/components/ui/calendar";
-import { format, addDays, isBefore, startOfToday } from "date-fns";
+import { format, addDays, isBefore, startOfToday, isSameDay } from "date-fns";
 import { CalendarIcon, Clock, CheckCircle } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Textarea } from "@/components/ui/textarea";
@@ -135,6 +135,9 @@ const BookAppointment = () => {
 
     const slots: string[] = [];
     const dateStr = format(date, "yyyy-MM-dd");
+    const isToday = isSameDay(date, new Date());
+    const now = new Date();
+    const currentMinutesOfDay = now.getHours() * 60 + now.getMinutes();
 
     // Get booked slots for this date
     const bookedSlots = existingAppointments
@@ -154,7 +157,10 @@ const BookAppointment = () => {
         const mins = currentMinutes % 60;
         const timeStr = `${hours.toString().padStart(2, "0")}:${mins.toString().padStart(2, "0")}`;
 
-        if (!bookedSlots.includes(timeStr)) {
+        // Skip past times if today
+        const isPastTime = isToday && currentMinutes <= currentMinutesOfDay;
+
+        if (!bookedSlots.includes(timeStr) && !isPastTime) {
           slots.push(timeStr);
         }
 

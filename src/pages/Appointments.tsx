@@ -23,7 +23,7 @@ import {
 } from "@/components/ui/select";
 import { Calendar } from "@/components/ui/calendar";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
-import { format, startOfWeek, endOfWeek, startOfMonth, endOfMonth, eachDayOfInterval, isSameDay, addDays } from "date-fns";
+import { format, startOfWeek, endOfWeek, startOfMonth, endOfMonth, eachDayOfInterval, isSameDay, addDays, isBefore, startOfToday } from "date-fns";
 import { CalendarIcon, Plus, Clock, User, Search, UserPlus } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Textarea } from "@/components/ui/textarea";
@@ -289,6 +289,23 @@ const Appointments = () => {
     "16:30", "17:00", "17:30", "18:00",
   ];
 
+  // Filter time slots based on selected date (exclude past times if today)
+  const getAvailableTimeSlots = () => {
+    const isToday = isSameDay(formData.date, new Date());
+    if (!isToday) return timeSlots;
+
+    const now = new Date();
+    const currentMinutes = now.getHours() * 60 + now.getMinutes();
+
+    return timeSlots.filter((time) => {
+      const [hours, mins] = time.split(":").map(Number);
+      const slotMinutes = hours * 60 + mins;
+      return slotMinutes > currentMinutes;
+    });
+  };
+
+  const availableTimeSlots = getAvailableTimeSlots();
+
   if (loading) {
     return (
       <MainLayout>
@@ -412,7 +429,12 @@ const Appointments = () => {
                         <Calendar
                           mode="single"
                           selected={formData.date}
-                          onSelect={(date) => date && setFormData({ ...formData, date })}
+                          onSelect={(date) => {
+                            if (date) {
+                              setFormData({ ...formData, date, time: "" });
+                            }
+                          }}
+                          disabled={(date) => isBefore(date, startOfToday())}
                           className="pointer-events-auto"
                         />
                       </PopoverContent>
@@ -428,14 +450,18 @@ const Appointments = () => {
                         onValueChange={(value) => setFormData({ ...formData, time: value })}
                       >
                         <SelectTrigger>
-                          <SelectValue />
+                          <SelectValue placeholder="Select time" />
                         </SelectTrigger>
                         <SelectContent>
-                          {timeSlots.map((time) => (
-                            <SelectItem key={time} value={time}>
-                              {time}
-                            </SelectItem>
-                          ))}
+                          {availableTimeSlots.length === 0 ? (
+                            <SelectItem value="" disabled>No available slots</SelectItem>
+                          ) : (
+                            availableTimeSlots.map((time) => (
+                              <SelectItem key={time} value={time}>
+                                {time}
+                              </SelectItem>
+                            ))
+                          )}
                         </SelectContent>
                       </Select>
                     </div>
@@ -494,7 +520,7 @@ const Appointments = () => {
                   <Button
                     onClick={handleSubmit}
                     className="w-full gradient-primary"
-                    disabled={!formData.patientId}
+                    disabled={!formData.patientId || !formData.time}
                   >
                     Schedule Appointment
                   </Button>

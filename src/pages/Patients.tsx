@@ -104,7 +104,27 @@ const Patients = () => {
   };
 
   const handleSubmit = async () => {
+    // Validate phone - must be 10 digits
+    if (!/^\d{10}$/.test(formData.phone)) {
+      toast.error("Please enter a valid 10-digit mobile number");
+      return;
+    }
+
     try {
+      // Check if phone already exists (for new patients or if phone changed)
+      const phoneToCheck = formData.phone;
+      const { data: existingPatient } = await supabase
+        .from("patients")
+        .select("id")
+        .eq("phone", phoneToCheck)
+        .neq("id", editingPatient?.id || "")
+        .maybeSingle();
+
+      if (existingPatient) {
+        toast.error("This mobile number is already registered with another patient");
+        return;
+      }
+
       if (editingPatient) {
         const { error } = await supabase
           .from("patients")
@@ -262,11 +282,14 @@ const Patients = () => {
                       />
                     </div>
                     <div className="space-y-2">
-                      <Label>Phone *</Label>
+                      <Label>Phone * (10 digits)</Label>
                       <Input
-                        placeholder="+91 98765 43210"
+                        type="tel"
+                        inputMode="numeric"
+                        maxLength={10}
+                        placeholder="9876543210"
                         value={formData.phone}
-                        onChange={(e) => setFormData({ ...formData, phone: e.target.value })}
+                        onChange={(e) => setFormData({ ...formData, phone: e.target.value.replace(/\D/g, '') })}
                       />
                     </div>
                   </div>

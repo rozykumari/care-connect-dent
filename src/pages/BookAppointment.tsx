@@ -44,6 +44,12 @@ interface PatientRecord {
   user_id: string;
 }
 
+interface FamilyMember {
+  id: string;
+  name: string;
+  relationship: string;
+}
+
 const appointmentTypes = [
   { value: "checkup", label: "Check-up" },
   { value: "cleaning", label: "Cleaning" },
@@ -58,11 +64,14 @@ const BookAppointment = () => {
   const [availability, setAvailability] = useState<DoctorAvailability[]>([]);
   const [existingAppointments, setExistingAppointments] = useState<Appointment[]>([]);
   const [patientRecord, setPatientRecord] = useState<PatientRecord | null>(null);
+  const [familyMembers, setFamilyMembers] = useState<FamilyMember[]>([]);
   const [loading, setLoading] = useState(true);
   const [submitting, setSubmitting] = useState(false);
   const [selectedDate, setSelectedDate] = useState<Date | undefined>(undefined);
   const [selectedTime, setSelectedTime] = useState<string>("");
   const [selectedType, setSelectedType] = useState("consultation");
+  const [selectedPatientType, setSelectedPatientType] = useState<"self" | "family">("self");
+  const [selectedFamilyMemberId, setSelectedFamilyMemberId] = useState<string>("");
   const [notes, setNotes] = useState("");
   const [bookingSuccess, setBookingSuccess] = useState(false);
 
@@ -101,6 +110,15 @@ const BookAppointment = () => {
           .order("date", { ascending: true });
 
         setExistingAppointments(apptData || []);
+
+        // Fetch family members
+        const { data: familyData } = await supabase
+          .from("family_members")
+          .select("id, name, relationship")
+          .eq("patient_id", patientData.id)
+          .order("name", { ascending: true });
+
+        setFamilyMembers(familyData || []);
       }
     } catch (error) {
       console.error("Error fetching data:", error);
@@ -156,6 +174,12 @@ const BookAppointment = () => {
   const handleBookAppointment = async () => {
     if (!selectedDate || !selectedTime || !patientRecord) return;
 
+    // Validate family member selection
+    if (selectedPatientType === "family" && !selectedFamilyMemberId) {
+      toast.error("Please select a family member");
+      return;
+    }
+
     // Get doctor_id from availability (assuming single doctor)
     const doctorId = availability[0]?.doctor_id;
     if (!doctorId) {
@@ -174,6 +198,7 @@ const BookAppointment = () => {
         status: "scheduled",
         notes: notes || null,
         duration: 30,
+        family_member_id: selectedPatientType === "family" ? selectedFamilyMemberId : null,
       });
 
       if (error) throw error;
@@ -193,6 +218,8 @@ const BookAppointment = () => {
     setSelectedDate(undefined);
     setSelectedTime("");
     setSelectedType("consultation");
+    setSelectedPatientType("self");
+    setSelectedFamilyMemberId("");
     setNotes("");
     setBookingSuccess(false);
   };
@@ -335,6 +362,50 @@ const BookAppointment = () => {
                     <CardTitle>Appointment Details</CardTitle>
                   </CardHeader>
                   <CardContent className="space-y-4">
+                    {/* Patient Selection */}
+                    <div className="space-y-2">
+                      <Label>Booking For</Label>
+                      <Select 
+                        value={selectedPatientType} 
+                        onValueChange={(value: "self" | "family") => {
+                          setSelectedPatientType(value);
+                          if (value === "self") setSelectedFamilyMemberId("");
+                        }}
+                      >
+                        <SelectTrigger>
+                          <SelectValue />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="self">Myself</SelectItem>
+                          {familyMembers.length > 0 && (
+                            <SelectItem value="family">Family Member</SelectItem>
+                          )}
+                        </SelectContent>
+                      </Select>
+                    </div>
+
+                    {/* Family Member Selection */}
+                    {selectedPatientType === "family" && familyMembers.length > 0 && (
+                      <div className="space-y-2">
+                        <Label>Select Family Member</Label>
+                        <Select 
+                          value={selectedFamilyMemberId} 
+                          onValueChange={setSelectedFamilyMemberId}
+                        >
+                          <SelectTrigger>
+                            <SelectValue placeholder="Select family member..." />
+                          </SelectTrigger>
+                          <SelectContent>
+                            {familyMembers.map((member) => (
+                              <SelectItem key={member.id} value={member.id}>
+                                {member.name} ({member.relationship})
+                              </SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+                      </div>
+                    )}
+
                     <div className="space-y-2">
                       <Label>Appointment Type</Label>
                       <Select value={selectedType} onValueChange={setSelectedType}>

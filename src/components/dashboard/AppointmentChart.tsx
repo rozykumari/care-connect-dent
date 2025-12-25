@@ -1,13 +1,46 @@
+import { useState, useEffect } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, PieChart, Pie, Cell } from "recharts";
-import { useStore } from "@/store/useStore";
+import { supabase } from "@/integrations/supabase/client";
 import { format, startOfWeek, endOfWeek, eachDayOfInterval, startOfMonth, endOfMonth, subMonths } from "date-fns";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+
+interface Appointment {
+  id: string;
+  date: string;
+  status: string;
+  type: string;
+}
 
 const COLORS = ["hsl(199, 89%, 48%)", "hsl(173, 58%, 39%)", "hsl(142, 76%, 36%)", "hsl(38, 92%, 50%)", "hsl(0, 84%, 60%)"];
 
 export function AppointmentChart() {
-  const appointments = useStore((state) => state.appointments);
+  const [appointments, setAppointments] = useState<Appointment[]>([]);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    fetchAppointments();
+  }, []);
+
+  const fetchAppointments = async () => {
+    try {
+      // Fetch appointments for the last 6 months
+      const sixMonthsAgo = subMonths(new Date(), 6);
+      
+      const { data, error } = await supabase
+        .from("appointments")
+        .select("id, date, status, type")
+        .gte("date", format(sixMonthsAgo, "yyyy-MM-dd"))
+        .order("date", { ascending: true });
+
+      if (error) throw error;
+      setAppointments(data || []);
+    } catch (error) {
+      console.error("Error fetching appointments:", error);
+    } finally {
+      setLoading(false);
+    }
+  };
 
   const getDailyData = () => {
     const today = new Date();
@@ -16,9 +49,8 @@ export function AppointmentChart() {
     const days = eachDayOfInterval({ start: weekStart, end: weekEnd });
 
     return days.map((day) => {
-      const dayAppointments = appointments.filter(
-        (apt) => format(new Date(apt.date), "yyyy-MM-dd") === format(day, "yyyy-MM-dd")
-      );
+      const dayStr = format(day, "yyyy-MM-dd");
+      const dayAppointments = appointments.filter((apt) => apt.date === dayStr);
       return {
         name: format(day, "EEE"),
         appointments: dayAppointments.length,
@@ -63,6 +95,21 @@ export function AppointmentChart() {
   const monthlyData = getMonthlyData();
   const typeData = getTypeDistribution();
 
+  if (loading) {
+    return (
+      <Card className="glass-card">
+        <CardHeader>
+          <CardTitle className="text-xl font-semibold">Appointment Analytics</CardTitle>
+        </CardHeader>
+        <CardContent>
+          <div className="flex items-center justify-center h-[300px]">
+            <div className="h-6 w-6 animate-spin rounded-full border-2 border-primary border-t-transparent" />
+          </div>
+        </CardContent>
+      </Card>
+    );
+  }
+
   return (
     <Card className="glass-card">
       <CardHeader>
@@ -89,8 +136,8 @@ export function AppointmentChart() {
                     borderRadius: "8px",
                   }}
                 />
-                <Bar dataKey="appointments" fill="hsl(var(--primary))" radius={[4, 4, 0, 0]} />
-                <Bar dataKey="completed" fill="hsl(var(--accent))" radius={[4, 4, 0, 0]} />
+                <Bar dataKey="appointments" fill="hsl(var(--primary))" radius={[4, 4, 0, 0]} name="Total" />
+                <Bar dataKey="completed" fill="hsl(var(--accent))" radius={[4, 4, 0, 0]} name="Completed" />
               </BarChart>
             </ResponsiveContainer>
           </TabsContent>
@@ -108,8 +155,8 @@ export function AppointmentChart() {
                     borderRadius: "8px",
                   }}
                 />
-                <Bar dataKey="appointments" fill="hsl(var(--primary))" radius={[4, 4, 0, 0]} />
-                <Bar dataKey="completed" fill="hsl(var(--accent))" radius={[4, 4, 0, 0]} />
+                <Bar dataKey="appointments" fill="hsl(var(--primary))" radius={[4, 4, 0, 0]} name="Total" />
+                <Bar dataKey="completed" fill="hsl(var(--accent))" radius={[4, 4, 0, 0]} name="Completed" />
               </BarChart>
             </ResponsiveContainer>
           </TabsContent>

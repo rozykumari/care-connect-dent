@@ -39,7 +39,7 @@ import {
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
 import { format } from "date-fns";
-import { Plus, Search, Package, AlertTriangle, Edit, Trash2, Pill, Wrench, Stethoscope, Activity } from "lucide-react";
+import { Plus, Search, Package, AlertTriangle, Edit, Trash2, Pill, Wrench, Stethoscope, Activity, Printer } from "lucide-react";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { toast } from "sonner";
@@ -67,6 +67,7 @@ const DoctorInventory = () => {
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [searchQuery, setSearchQuery] = useState("");
   const [categoryFilter, setCategoryFilter] = useState<string>("all");
+  const [statusFilter, setStatusFilter] = useState<string>("all");
   const [editingItem, setEditingItem] = useState<InventoryItem | null>(null);
   const [deleteId, setDeleteId] = useState<string | null>(null);
 
@@ -202,11 +203,26 @@ const DoctorInventory = () => {
     const matchesSearch = item.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
       (item.description && item.description.toLowerCase().includes(searchQuery.toLowerCase()));
     const matchesCategory = categoryFilter === "all" || item.category === categoryFilter;
-    return matchesSearch && matchesCategory;
+    const isLowStock = item.stock <= item.reorder_level;
+    const matchesStatus = statusFilter === "all" || 
+      (statusFilter === "low" && isLowStock) || 
+      (statusFilter === "in-stock" && !isLowStock);
+    return matchesSearch && matchesCategory && matchesStatus;
   });
 
-  const lowStockItems = inventory.filter((item) => item.stock <= item.reorder_level && item.category !== "procedure" && item.category !== "examination");
+  // Low stock items based on selected category (exclude procedure/examination from low stock)
+  const lowStockItems = inventory.filter((item) => {
+    const isLowStock = item.stock <= item.reorder_level;
+    const isTrackableCategory = item.category !== "procedure" && item.category !== "examination";
+    const matchesCategoryFilter = categoryFilter === "all" || item.category === categoryFilter;
+    return isLowStock && isTrackableCategory && matchesCategoryFilter;
+  });
+
   const categories = [...new Set(inventory.map((item) => item.category))];
+
+  const handlePrint = () => {
+    window.print();
+  };
 
   const getCategoryIcon = (category: string) => {
     switch (category) {
@@ -362,11 +378,12 @@ const DoctorInventory = () => {
 
         {/* Low Stock Alert */}
         {lowStockItems.length > 0 && (
-          <Card className="border-destructive/50 bg-destructive/5">
+          <Card className="border-destructive/50 bg-destructive/5 print:hidden">
             <CardHeader className="pb-2">
               <CardTitle className="text-base flex items-center gap-2 text-destructive">
                 <AlertTriangle className="h-5 w-5" />
                 Low Stock Alert ({lowStockItems.length} items)
+                {categoryFilter !== "all" && <span className="text-xs font-normal">in {categoryFilter}</span>}
               </CardTitle>
             </CardHeader>
             <CardContent>
@@ -382,7 +399,7 @@ const DoctorInventory = () => {
         )}
 
         {/* Search and Filter */}
-        <div className="flex flex-col sm:flex-row gap-3">
+        <div className="flex flex-col sm:flex-row gap-3 print:hidden">
           <div className="relative flex-1">
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
             <Input
@@ -406,6 +423,31 @@ const DoctorInventory = () => {
               <SelectItem value="equipment">Equipment</SelectItem>
             </SelectContent>
           </Select>
+          <Select value={statusFilter} onValueChange={setStatusFilter}>
+            <SelectTrigger className="w-full sm:w-36">
+              <SelectValue placeholder="Status" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">All Status</SelectItem>
+              <SelectItem value="in-stock">In Stock</SelectItem>
+              <SelectItem value="low">Low Stock</SelectItem>
+            </SelectContent>
+          </Select>
+          <Button variant="outline" onClick={handlePrint} className="shrink-0">
+            <Printer className="h-4 w-4 mr-2" />
+            Print
+          </Button>
+        </div>
+
+        {/* Print Header */}
+        <div className="hidden print:block mb-4">
+          <h1 className="text-2xl font-bold">Inventory Report</h1>
+          <p className="text-sm text-muted-foreground">
+            Generated on {new Date().toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' })}
+            {categoryFilter !== "all" && ` • Category: ${categoryFilter}`}
+            {statusFilter !== "all" && ` • Status: ${statusFilter === "low" ? "Low Stock" : "In Stock"}`}
+          </p>
+          <p className="text-sm">Total Items: {filteredInventory.length}</p>
         </div>
 
         {/* Desktop Table View */}

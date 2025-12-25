@@ -59,6 +59,8 @@ interface Procedure {
   description: string | null;
   status: string;
   date: string | null;
+  start_date: string | null;
+  end_date: string | null;
   created_at: string;
 }
 
@@ -323,11 +325,14 @@ export const PatientMedicalRecords = ({ patient, open, onOpenChange }: PatientMe
                               {proc.description && (
                                 <p className="text-sm text-muted-foreground mt-1">{proc.description}</p>
                               )}
-                              {proc.date && (
-                                <p className="text-xs text-muted-foreground mt-1">
-                                  Scheduled: {format(new Date(proc.date), "MMM d, yyyy")}
-                                </p>
-                              )}
+                              <div className="text-xs text-muted-foreground mt-1 space-y-0.5">
+                                {(proc.start_date || proc.date) && (
+                                  <p>Start: {format(new Date(proc.start_date || proc.date!), "MMM d, yyyy")}</p>
+                                )}
+                                {proc.end_date && (
+                                  <p>End: {format(new Date(proc.end_date), "MMM d, yyyy")}</p>
+                                )}
+                              </div>
                             </div>
                             <Badge className={`${getStatusBadge(proc.status)} capitalize text-xs`}>
                               {proc.status}

@@ -261,8 +261,10 @@ export type Database = {
           created_at: string
           date: string | null
           description: string | null
+          end_date: string | null
           id: string
           name: string
+          start_date: string | null
           status: string
           user_id: string
         }
@@ -270,8 +272,10 @@ export type Database = {
           created_at?: string
           date?: string | null
           description?: string | null
+          end_date?: string | null
           id?: string
           name: string
+          start_date?: string | null
           status?: string
           user_id: string
         }
@@ -279,8 +283,10 @@ export type Database = {
           created_at?: string
           date?: string | null
           description?: string | null
+          end_date?: string | null
           id?: string
           name?: string
+          start_date?: string | null
           status?: string
           user_id?: string
         }

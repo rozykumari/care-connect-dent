@@ -226,35 +226,46 @@ export type Database = {
           dose: string
           id: string
           name: string
+          patient_id: string | null
           time_evening: boolean
           time_morning: boolean
           time_noon: boolean
           time_sos: boolean
-          user_id: string
+          user_id: string | null
         }
         Insert: {
           created_at?: string
           dose: string
           id?: string
           name: string
+          patient_id?: string | null
           time_evening?: boolean
           time_morning?: boolean
           time_noon?: boolean
           time_sos?: boolean
-          user_id: string
+          user_id?: string | null
         }
         Update: {
           created_at?: string
           dose?: string
           id?: string
           name?: string
+          patient_id?: string | null
           time_evening?: boolean
           time_morning?: boolean
           time_noon?: boolean
           time_sos?: boolean
-          user_id?: string
+          user_id?: string | null
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "patient_prescriptions_patient_id_fkey"
+            columns: ["patient_id"]
+            isOneToOne: false
+            referencedRelation: "patients"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       patient_procedures: {
         Row: {
@@ -264,9 +275,10 @@ export type Database = {
           end_date: string | null
           id: string
           name: string
+          patient_id: string | null
           start_date: string | null
           status: string
-          user_id: string
+          user_id: string | null
         }
         Insert: {
           created_at?: string
@@ -275,9 +287,10 @@ export type Database = {
           end_date?: string | null
           id?: string
           name: string
+          patient_id?: string | null
           start_date?: string | null
           status?: string
-          user_id: string
+          user_id?: string | null
         }
         Update: {
           created_at?: string
@@ -286,11 +299,20 @@ export type Database = {
           end_date?: string | null
           id?: string
           name?: string
+          patient_id?: string | null
           start_date?: string | null
           status?: string
-          user_id?: string
+          user_id?: string | null
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "patient_procedures_patient_id_fkey"
+            columns: ["patient_id"]
+            isOneToOne: false
+            referencedRelation: "patients"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       patients: {
         Row: {

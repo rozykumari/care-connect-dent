@@ -71,7 +71,8 @@ interface Patient {
 
 interface Prescription {
   id: string;
-  user_id: string;
+  user_id: string | null;
+  patient_id?: string | null;
   name: string;
   dose: string;
   time_morning: boolean;
@@ -83,7 +84,8 @@ interface Prescription {
 
 interface Procedure {
   id: string;
-  user_id: string;
+  user_id: string | null;
+  patient_id?: string | null;
   name: string;
   description: string | null;
   status: string;
@@ -166,8 +168,8 @@ const DoctorManagement = () => {
   }, [user]);
 
   useEffect(() => {
-    if (selectedPatient?.user_id) {
-      fetchPatientData(selectedPatient.user_id);
+    if (selectedPatient) {
+      fetchPatientData(selectedPatient.id, selectedPatient.user_id);
     } else {
       setPrescriptions([]);
       setProcedures([]);
@@ -206,11 +208,25 @@ const DoctorManagement = () => {
     }
   };
 
-  const fetchPatientData = async (userId: string) => {
+  const fetchPatientData = async (patientId: string, userId?: string | null) => {
     try {
+      const prescriptionsQuery = supabase
+        .from('patient_prescriptions')
+        .select('*')
+        .order('created_at', { ascending: false });
+
+      const proceduresQuery = supabase
+        .from('patient_procedures')
+        .select('*')
+        .order('created_at', { ascending: false });
+
       const [prescRes, procRes] = await Promise.all([
-        supabase.from('patient_prescriptions').select('*').eq('user_id', userId).order('created_at', { ascending: false }),
-        supabase.from('patient_procedures').select('*').eq('user_id', userId).order('created_at', { ascending: false }),
+        userId
+          ? prescriptionsQuery.or(`user_id.eq.${userId},patient_id.eq.${patientId}`)
+          : prescriptionsQuery.eq('patient_id', patientId),
+        userId
+          ? proceduresQuery.or(`user_id.eq.${userId},patient_id.eq.${patientId}`)
+          : proceduresQuery.eq('patient_id', patientId),
       ]);
 
       if (prescRes.data) setPrescriptions(prescRes.data);
@@ -270,7 +286,7 @@ const DoctorManagement = () => {
   };
 
   const addMedicine = async () => {
-    if (!selectedPatient?.user_id || !medicineForm.name || !medicineForm.dose) {
+    if (!selectedPatient?.id || !medicineForm.name.trim() || !medicineForm.dose.trim()) {
       toast.error('Please fill all required fields');
       return;
     }
@@ -280,9 +296,10 @@ const DoctorManagement = () => {
     }
 
     const { error } = await supabase.from('patient_prescriptions').insert({
-      user_id: selectedPatient.user_id,
-      name: medicineForm.name,
-      dose: medicineForm.dose,
+      patient_id: selectedPatient.id,
+      user_id: selectedPatient.user_id ?? null,
+      name: medicineForm.name.trim(),
+      dose: medicineForm.dose.trim(),
       time_morning: medicineForm.time_morning,
       time_noon: medicineForm.time_noon,
       time_evening: medicineForm.time_evening,
@@ -303,20 +320,21 @@ const DoctorManagement = () => {
         days: 0,
       });
       setMedicineDialogOpen(false);
-      fetchPatientData(selectedPatient.user_id);
+      fetchPatientData(selectedPatient.id, selectedPatient.user_id);
     }
   };
 
   const addProcedure = async () => {
-    if (!selectedPatient?.user_id || !procedureForm.name) {
+    if (!selectedPatient?.id || !procedureForm.name.trim()) {
       toast.error('Please enter procedure name');
       return;
     }
 
     const { error } = await supabase.from('patient_procedures').insert({
-      user_id: selectedPatient.user_id,
-      name: procedureForm.name,
-      description: procedureForm.description || null,
+      patient_id: selectedPatient.id,
+      user_id: selectedPatient.user_id ?? null,
+      name: procedureForm.name.trim(),
+      description: procedureForm.description?.trim() || null,
       status: procedureForm.status,
       date: procedureForm.date || null,
     });
@@ -327,7 +345,7 @@ const DoctorManagement = () => {
       toast.success('Procedure added');
       setProcedureForm({ name: '', description: '', status: 'planned', date: '', price: 0 });
       setProcedureDialogOpen(false);
-      fetchPatientData(selectedPatient.user_id);
+      fetchPatientData(selectedPatient.id, selectedPatient.user_id);
     }
   };
 
@@ -335,8 +353,8 @@ const DoctorManagement = () => {
     const { error } = await supabase.from('patient_prescriptions').delete().eq('id', id);
     if (error) {
       toast.error('Failed to delete');
-    } else if (selectedPatient?.user_id) {
-      fetchPatientData(selectedPatient.user_id);
+    } else if (selectedPatient) {
+      fetchPatientData(selectedPatient.id, selectedPatient.user_id);
     }
   };
 
@@ -344,8 +362,8 @@ const DoctorManagement = () => {
     const { error } = await supabase.from('patient_procedures').delete().eq('id', id);
     if (error) {
       toast.error('Failed to delete');
-    } else if (selectedPatient?.user_id) {
-      fetchPatientData(selectedPatient.user_id);
+    } else if (selectedPatient) {
+      fetchPatientData(selectedPatient.id, selectedPatient.user_id);
     }
   };
 

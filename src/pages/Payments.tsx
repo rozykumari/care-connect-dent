@@ -40,10 +40,12 @@ interface Patient {
 interface PrescribedItem {
   id: string;
   name: string;
-  type: 'medicine' | 'procedure';
+  type: 'medicine' | 'procedure' | 'examination';
   price: number;
   selected: boolean;
   details?: string;
+  quantity?: number;
+  inventoryId?: string;
 }
 
 interface InventoryItem {
@@ -51,6 +53,7 @@ interface InventoryItem {
   name: string;
   category: string;
   price: number;
+  stock: number;
 }
 
 const statusColors: Record<string, string> = {
@@ -98,7 +101,7 @@ const Payments = () => {
       // Fetch inventory for price lookup
       const { data: inventoryData } = await supabase
         .from("inventory")
-        .select("id, name, category, price");
+        .select("id, name, category, price, stock");
 
       if (inventoryData) setInventoryItems(inventoryData);
 
@@ -127,17 +130,18 @@ const Payments = () => {
     }
   };
 
-  const fetchPatientPrescribedItems = async (userId: string | null) => {
-    if (!userId) {
-      setPrescribedItems([]);
-      return;
-    }
-
+  const fetchPatientPrescribedItems = async (patientId: string, userId: string | null) => {
     try {
-      const [prescRes, procRes] = await Promise.all([
-        supabase.from('patient_prescriptions').select('*').eq('user_id', userId),
-        supabase.from('patient_procedures').select('*').eq('user_id', userId),
-      ]);
+      // Build queries that check both patient_id and user_id
+      const prescPromise = userId 
+        ? supabase.from('patient_prescriptions').select('*').or(`user_id.eq.${userId},patient_id.eq.${patientId}`)
+        : supabase.from('patient_prescriptions').select('*').eq('patient_id', patientId);
+      
+      const procPromise = userId
+        ? supabase.from('patient_procedures').select('*').or(`user_id.eq.${userId},patient_id.eq.${patientId}`)
+        : supabase.from('patient_procedures').select('*').eq('patient_id', patientId);
+
+      const [prescRes, procRes] = await Promise.all([prescPromise, procPromise]);
 
       const items: PrescribedItem[] = [];
 
@@ -161,12 +165,14 @@ const Payments = () => {
             type: 'medicine',
             price: inventoryMatch ? Number(inventoryMatch.price) : 0,
             selected: true,
-            details: `${med.dose} (${timing})`
+            details: `${med.dose} (${timing})`,
+            quantity: 1,
+            inventoryId: inventoryMatch?.id
           });
         });
       }
 
-      // Add procedures
+      // Add procedures and examinations
       if (procRes.data) {
         procRes.data.forEach(proc => {
           // Try to find price from inventory
@@ -178,10 +184,11 @@ const Payments = () => {
           items.push({
             id: proc.id,
             name: proc.name,
-            type: 'procedure',
+            type: inventoryMatch?.category === 'examination' ? 'examination' : 'procedure',
             price: inventoryMatch ? Number(inventoryMatch.price) : 0,
             selected: true,
-            details: proc.status
+            details: proc.status,
+            inventoryId: inventoryMatch?.id
           });
         });
       }
@@ -189,6 +196,7 @@ const Payments = () => {
       setPrescribedItems(items);
     } catch (error) {
       console.error("Error fetching prescribed items:", error);
+      setPrescribedItems([]);
     }
   };
 
@@ -202,7 +210,15 @@ const Payments = () => {
     setPatientSearchOpen(false);
     setPatientSearch("");
     setCustomItems([]);
-    await fetchPatientPrescribedItems(patient.user_id);
+    await fetchPatientPrescribedItems(patient.id, patient.user_id);
+  };
+
+  const updateItemQuantity = (id: string, quantity: number) => {
+    setPrescribedItems(items => 
+      items.map(item => 
+        item.id === id ? { ...item, quantity: Math.max(1, quantity) } : item
+      )
+    );
   };
 
   const toggleItemSelection = (id: string) => {
@@ -241,7 +257,7 @@ const Payments = () => {
   const calculateTotal = () => {
     const prescribedTotal = prescribedItems
       .filter(item => item.selected)
-      .reduce((sum, item) => sum + item.price, 0);
+      .reduce((sum, item) => sum + (item.price * (item.quantity || 1)), 0);
     const customTotal = customItems.reduce((sum, item) => sum + item.price, 0);
     return prescribedTotal + customTotal;
   };
@@ -261,9 +277,13 @@ const Payments = () => {
     // Build description from selected items
     const selectedPrescribed = prescribedItems.filter(i => i.selected);
     const allItems = [...selectedPrescribed, ...customItems];
-    const description = allItems.map(i => `${i.name}: ₹${i.price}`).join(', ');
+    const description = allItems.map(i => {
+      const qty = i.quantity || 1;
+      return qty > 1 ? `${i.name} x${qty}: ₹${i.price * qty}` : `${i.name}: ₹${i.price}`;
+    }).join(', ');
 
     try {
+      // Insert payment
       const { error } = await supabase.from("payments").insert({
         patient_id: formData.patientId,
         amount: totalAmount,
@@ -274,7 +294,23 @@ const Payments = () => {
 
       if (error) throw error;
 
-      toast.success("Payment recorded");
+      // Deduct inventory for medicines with inventoryId
+      const medicinesToDeduct = selectedPrescribed.filter(
+        item => item.type === 'medicine' && item.inventoryId && item.quantity
+      );
+
+      for (const med of medicinesToDeduct) {
+        const inventoryItem = inventoryItems.find(inv => inv.id === med.inventoryId);
+        if (inventoryItem) {
+          const newStock = Math.max(0, inventoryItem.stock - (med.quantity || 1));
+          await supabase
+            .from("inventory")
+            .update({ stock: newStock })
+            .eq("id", med.inventoryId);
+        }
+      }
+
+      toast.success("Payment recorded and inventory updated");
       setIsDialogOpen(false);
       setFormData({ patientId: "", patientName: "", patientUserId: null, method: "cash", description: "" });
       setPrescribedItems([]);
@@ -393,7 +429,7 @@ const Payments = () => {
                                 <div 
                                   key={item.id} 
                                   className={cn(
-                                    "flex items-center gap-3 p-2 rounded-md border",
+                                    "flex items-center gap-2 p-2 rounded-md border",
                                     item.selected ? "bg-primary/5 border-primary/30" : "bg-muted/30"
                                   )}
                                 >
@@ -412,9 +448,19 @@ const Payments = () => {
                                       )}
                                     </div>
                                   </div>
+                                  {item.type === 'medicine' && (
+                                    <Input
+                                      type="number"
+                                      className="w-16 text-center"
+                                      value={item.quantity || 1}
+                                      onChange={(e) => updateItemQuantity(item.id, parseInt(e.target.value) || 1)}
+                                      min={1}
+                                      placeholder="Qty"
+                                    />
+                                  )}
                                   <Input
                                     type="number"
-                                    className="w-24 text-right"
+                                    className="w-20 text-right"
                                     value={item.price || ''}
                                     onChange={(e) => updateItemPrice(item.id, parseFloat(e.target.value) || 0)}
                                     placeholder="₹0"

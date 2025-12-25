@@ -157,8 +157,13 @@ const Procedures = () => {
   };
 
   const handleSubmit = async () => {
-    if (!formData.userId || !formData.name) {
-      toast.error("Please select a patient and procedure");
+    if (!formData.userId) {
+      toast.error("Please select a patient");
+      return;
+    }
+    
+    if (!formData.name || formData.name.trim() === "") {
+      toast.error("Please select a procedure");
       return;
     }
 

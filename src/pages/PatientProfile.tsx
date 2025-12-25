@@ -129,9 +129,20 @@ const PatientProfile = () => {
     }
   };
 
+  const handlePhoneChange = (value: string) => {
+    // Only allow digits
+    const digitsOnly = value.replace(/\D/g, '');
+    setEditForm({ ...editForm, phone: digitsOnly });
+  };
+
   const saveProfile = async () => {
     if (!editForm.name.trim() || !editForm.phone.trim()) {
       toast.error('Name and phone are required');
+      return;
+    }
+
+    if (!/^\d{10}$/.test(editForm.phone)) {
+      toast.error('Please enter a valid 10-digit mobile number');
       return;
     }
 
@@ -243,9 +254,12 @@ const PatientProfile = () => {
                 </Label>
                 <Input
                   id="phone"
+                  type="tel"
+                  inputMode="numeric"
+                  maxLength={10}
                   value={editForm.phone}
-                  onChange={(e) => setEditForm({ ...editForm, phone: e.target.value })}
-                  placeholder="Enter your mobile number"
+                  onChange={(e) => handlePhoneChange(e.target.value)}
+                  placeholder="Enter 10-digit mobile number"
                 />
               </div>
               <div className="space-y-2">

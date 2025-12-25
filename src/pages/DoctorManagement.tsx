@@ -143,7 +143,7 @@ const DoctorManagement = () => {
     time_noon: false,
     time_evening: false,
     time_sos: false,
-    price: 0,
+    days: 0,
   });
 
   // Procedure form
@@ -300,7 +300,7 @@ const DoctorManagement = () => {
         time_noon: false,
         time_evening: false,
         time_sos: false,
-        price: 0,
+        days: 0,
       });
       setMedicineDialogOpen(false);
       fetchPatientData(selectedPatient.user_id);
@@ -832,7 +832,7 @@ const DoctorManagement = () => {
                           variant="ghost" 
                           className="w-full"
                           onClick={() => {
-                            setMedicineForm({ ...medicineForm, name: medicineSearch, price: 0 });
+                            setMedicineForm({ ...medicineForm, name: medicineSearch, days: 0 });
                             setMedicineSearchOpen(false);
                           }}
                         >
@@ -851,17 +851,13 @@ const DoctorManagement = () => {
                               onSelect={() => {
                                 setMedicineForm({ 
                                   ...medicineForm, 
-                                  name: item.name, 
-                                  price: Number(item.price) 
+                                  name: item.name
                                 });
                                 setMedicineSearchOpen(false);
                                 setMedicineSearch('');
                               }}
                             >
-                              <div className="flex justify-between w-full">
-                                <span>{item.name}</span>
-                                <span className="text-muted-foreground">₹{Number(item.price).toFixed(2)}</span>
-                              </div>
+                              <span>{item.name}</span>
                             </CommandItem>
                           ))}
                       </CommandGroup>
@@ -886,13 +882,14 @@ const DoctorManagement = () => {
                 />
               </div>
               <div>
-                <Label>Price (₹)</Label>
+                <Label>Days</Label>
                 <Input 
                   type="number"
-                  step="0.01"
-                  value={medicineForm.price || ''} 
-                  onChange={(e) => setMedicineForm({ ...medicineForm, price: parseFloat(e.target.value) || 0 })} 
-                  placeholder="0.00" 
+                  inputMode="numeric"
+                  min="1"
+                  value={medicineForm.days || ''} 
+                  onChange={(e) => setMedicineForm({ ...medicineForm, days: parseInt(e.target.value.replace(/\D/g, '')) || 0 })} 
+                  placeholder="e.g., 5" 
                 />
               </div>
             </div>

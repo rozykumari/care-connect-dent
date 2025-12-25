@@ -94,7 +94,7 @@ const Appointments = () => {
     date: new Date(),
     time: "09:00",
     type: "checkup",
-    duration: 30,
+    duration: 15,
     notes: "",
   });
 

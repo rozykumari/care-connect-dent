@@ -138,6 +138,10 @@ const DoctorManagement = () => {
   const [medicineDialogOpen, setMedicineDialogOpen] = useState(false);
   const [medicineSearchOpen, setMedicineSearchOpen] = useState(false);
   const [medicineSearch, setMedicineSearch] = useState('');
+  
+  // Examination search
+  const [examinationSearchOpen, setExaminationSearchOpen] = useState(false);
+  const [examinationSearch, setExaminationSearch] = useState('');
   const [medicineForm, setMedicineForm] = useState({
     name: '',
     dose: '',
@@ -640,9 +644,51 @@ const DoctorManagement = () => {
                     Examination
                   </CardTitle>
                 </CardHeader>
-                <CardContent className="print:pt-0">
+                <CardContent className="print:pt-0 space-y-2">
+                  {/* Examination Search from Inventory */}
+                  <Popover open={examinationSearchOpen} onOpenChange={setExaminationSearchOpen}>
+                    <PopoverTrigger asChild>
+                      <Button variant="outline" size="sm" className="w-full justify-start print:hidden">
+                        <Plus className="h-3 w-3 mr-2" />
+                        Select from inventory...
+                      </Button>
+                    </PopoverTrigger>
+                    <PopoverContent className="w-[300px] p-0" align="start">
+                      <Command>
+                        <CommandInput 
+                          placeholder="Search examinations..." 
+                          value={examinationSearch}
+                          onValueChange={setExaminationSearch}
+                        />
+                        <CommandList>
+                          <CommandEmpty>No examinations found</CommandEmpty>
+                          <CommandGroup>
+                            {inventoryItems
+                              .filter(item => item.category === 'examination')
+                              .filter(item => item.name.toLowerCase().includes(examinationSearch.toLowerCase()))
+                              .slice(0, 10)
+                              .map((item) => (
+                                <CommandItem
+                                  key={item.id}
+                                  value={item.id}
+                                  onSelect={() => {
+                                    setExamination(prev => 
+                                      prev ? `${prev}\n• ${item.name}` : `• ${item.name}`
+                                    );
+                                    setExaminationSearchOpen(false);
+                                    setExaminationSearch('');
+                                  }}
+                                >
+                                  <span>{item.name}</span>
+                                </CommandItem>
+                              ))}
+                          </CommandGroup>
+                        </CommandList>
+                      </Command>
+                    </PopoverContent>
+                  </Popover>
                   <Textarea 
-                    placeholder="Enter examination findings..."
+                    placeholder="Enter examination findings or select from inventory..."
                     value={examination}
                     onChange={(e) => setExamination(e.target.value)}
                     className="min-h-[80px] print:border-0 print:min-h-0 print:p-0 print:resize-none"

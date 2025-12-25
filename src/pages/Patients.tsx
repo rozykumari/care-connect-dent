@@ -104,15 +104,28 @@ const Patients = () => {
   };
 
   const handleSubmit = async () => {
+    // Validate name
+    const trimmedName = formData.name.trim();
+    if (!trimmedName) {
+      toast.error("Please enter patient name");
+      return;
+    }
+
     // Validate phone - must be 10 digits
-    if (!/^\d{10}$/.test(formData.phone)) {
+    const trimmedPhone = formData.phone.trim();
+    if (!trimmedPhone) {
+      toast.error("Please enter phone number");
+      return;
+    }
+    
+    if (!/^\d{10}$/.test(trimmedPhone)) {
       toast.error("Please enter a valid 10-digit mobile number");
       return;
     }
 
     try {
       // Check if phone already exists (for new patients or if phone changed)
-      const phoneToCheck = formData.phone;
+      const phoneToCheck = trimmedPhone;
       const { data: existingPatient } = await supabase
         .from("patients")
         .select("id")
@@ -129,13 +142,13 @@ const Patients = () => {
         const { error } = await supabase
           .from("patients")
           .update({
-            name: formData.name,
-            email: formData.email || null,
-            phone: formData.phone,
+            name: trimmedName,
+            email: formData.email.trim() || null,
+            phone: trimmedPhone,
             date_of_birth: formData.date_of_birth || null,
-            address: formData.address || null,
-            medical_history: formData.medical_history || null,
-            allergies: formData.allergies || null,
+            address: formData.address.trim() || null,
+            medical_history: formData.medical_history.trim() || null,
+            allergies: formData.allergies.trim() || null,
           })
           .eq("id", editingPatient.id);
 
@@ -143,13 +156,13 @@ const Patients = () => {
         toast.success("Patient updated successfully");
       } else {
         const { error } = await supabase.from("patients").insert({
-          name: formData.name,
-          email: formData.email || null,
-          phone: formData.phone,
+          name: trimmedName,
+          email: formData.email.trim() || null,
+          phone: trimmedPhone,
           date_of_birth: formData.date_of_birth || null,
-          address: formData.address || null,
-          medical_history: formData.medical_history || null,
-          allergies: formData.allergies || null,
+          address: formData.address.trim() || null,
+          medical_history: formData.medical_history.trim() || null,
+          allergies: formData.allergies.trim() || null,
         });
 
         if (error) throw error;
@@ -324,7 +337,7 @@ const Patients = () => {
                   <Button
                     onClick={handleSubmit}
                     className="w-full gradient-primary"
-                    disabled={!formData.name || !formData.phone}
+                    disabled={!formData.name.trim() || !formData.phone.trim()}
                   >
                     {editingPatient ? "Update Patient" : "Add Patient"}
                   </Button>

@@ -1,8 +1,8 @@
-import React, { memo, CSSProperties, ReactElement } from "react";
+import React, { CSSProperties, ReactElement } from "react";
 import { List, RowComponentProps } from "react-window";
 import { cn } from "@/lib/utils";
 
-interface Column<T> {
+export interface Column<T> {
   key: string;
   header: string;
   width?: string;
@@ -27,7 +27,7 @@ interface TableRowPropsData<T> {
   onRowClick?: (item: T) => void;
 }
 
-// Table row component
+// Table row component for virtualized list
 function TableRowComponent<T>({ 
   index, 
   style, 
@@ -59,6 +59,45 @@ function TableRowComponent<T>({
   );
 }
 
+// Simple non-virtualized row for small datasets
+function SimpleTableRow<T>({
+  item,
+  index,
+  columns,
+  rowHeight,
+  onRowClick,
+}: {
+  item: T;
+  index: number;
+  columns: Column<T>[];
+  rowHeight: number;
+  onRowClick?: (item: T) => void;
+}) {
+  return (
+    <div
+      style={{ height: rowHeight }}
+      className={cn(
+        "flex items-center border-b border-border hover:bg-muted/50 transition-colors",
+        onRowClick && "cursor-pointer"
+      )}
+      onClick={onRowClick ? () => onRowClick(item) : undefined}
+    >
+      {columns.map((column) => (
+        <div 
+          key={column.key} 
+          className={cn("px-4 py-3 text-sm", column.className)}
+          style={{ width: column.width || "auto", flex: column.width ? "none" : 1 }}
+        >
+          {column.render(item, index)}
+        </div>
+      ))}
+    </div>
+  );
+}
+
+// Threshold for when to use virtualization
+const VIRTUALIZATION_THRESHOLD = 50;
+
 export function VirtualizedTable<T>({
   data,
   columns,
@@ -76,6 +115,7 @@ export function VirtualizedTable<T>({
     );
   }
 
+  const useVirtualization = data.length > VIRTUALIZATION_THRESHOLD;
   const calculatedHeight = Math.min(height, data.length * rowHeight);
 
   return (
@@ -93,15 +133,30 @@ export function VirtualizedTable<T>({
         ))}
       </div>
       
-      {/* Virtualized Body */}
-      <List<TableRowPropsData<T>>
-        rowComponent={TableRowComponent as (props: RowComponentProps<TableRowPropsData<T>>) => ReactElement}
-        rowCount={data.length}
-        rowHeight={rowHeight}
-        rowProps={{ items: data, columns, onRowClick }}
-        style={{ height: calculatedHeight }}
-        overscanCount={5}
-      />
+      {/* Body */}
+      {useVirtualization ? (
+        <List<TableRowPropsData<T>>
+          rowComponent={TableRowComponent as (props: RowComponentProps<TableRowPropsData<T>>) => ReactElement}
+          rowCount={data.length}
+          rowHeight={rowHeight}
+          rowProps={{ items: data, columns, onRowClick }}
+          style={{ height: calculatedHeight, width: "100%", overflow: "auto" }}
+          overscanCount={5}
+        />
+      ) : (
+        <div style={{ maxHeight: height, overflow: "auto" }}>
+          {data.map((item, index) => (
+            <SimpleTableRow
+              key={keyExtractor(item)}
+              item={item}
+              index={index}
+              columns={columns}
+              rowHeight={rowHeight}
+              onRowClick={onRowClick}
+            />
+          ))}
+        </div>
+      )}
     </div>
   );
 }
@@ -138,6 +193,7 @@ export function VirtualizedList<T>({
   itemHeight,
   height = 600,
   renderItem,
+  keyExtractor,
   emptyMessage = "No data found",
   className,
 }: VirtualizedListProps<T>) {
@@ -149,17 +205,31 @@ export function VirtualizedList<T>({
     );
   }
 
+  const useVirtualization = data.length > VIRTUALIZATION_THRESHOLD;
   const calculatedHeight = Math.min(height, data.length * itemHeight);
 
+  if (useVirtualization) {
+    return (
+      <List<ListRowPropsData<T>>
+        rowComponent={ListRowComponent as (props: RowComponentProps<ListRowPropsData<T>>) => ReactElement}
+        rowCount={data.length}
+        rowHeight={itemHeight}
+        rowProps={{ items: data, renderItem }}
+        style={{ height: calculatedHeight, width: "100%", overflow: "auto" }}
+        overscanCount={3}
+        className={className}
+      />
+    );
+  }
+
+  // For small datasets, render without virtualization
   return (
-    <List<ListRowPropsData<T>>
-      rowComponent={ListRowComponent as (props: RowComponentProps<ListRowPropsData<T>>) => ReactElement}
-      rowCount={data.length}
-      rowHeight={itemHeight}
-      rowProps={{ items: data, renderItem }}
-      style={{ height: calculatedHeight }}
-      overscanCount={3}
-      className={className}
-    />
+    <div style={{ maxHeight: height, overflow: "auto" }} className={className}>
+      {data.map((item, index) => (
+        <div key={keyExtractor(item)}>
+          {renderItem(item, index, { height: itemHeight })}
+        </div>
+      ))}
+    </div>
   );
 }

@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback, useMemo, memo } from "react";
 import { MainLayout } from "@/components/layout/MainLayout";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
@@ -9,7 +9,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from 
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { format } from "date-fns";
-import { Plus, Search, Loader2, Trash2 } from "lucide-react";
+import { Plus, Search, Trash2 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Label } from "@/components/ui/label";
 import { toast } from "sonner";
@@ -19,6 +19,7 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Separator } from "@/components/ui/separator";
 import { formatAge } from "@/lib/helpers";
+import { PageSkeleton } from "@/components/ui/skeleton-card";
 
 interface Payment {
   id: string;
@@ -99,36 +100,32 @@ const Payments = () => {
     fetchData();
   }, []);
 
-  const fetchData = async () => {
+  const fetchData = useCallback(async () => {
     setLoading(true);
     try {
-      // Fetch patients first
-      const { data: patientsData } = await supabase
-        .from("patients")
-        .select("id, name, phone, user_id, date_of_birth")
-        .order("name");
+      // Fetch all data in parallel for better performance
+      const [patientsRes, inventoryRes, paymentsRes] = await Promise.all([
+        supabase
+          .from("patients")
+          .select("id, name, phone, user_id, date_of_birth")
+          .order("name"),
+        supabase
+          .from("inventory")
+          .select("id, name, category, price, stock"),
+        supabase
+          .from("payments")
+          .select(`
+            *,
+            patients!payments_patient_id_fkey (name)
+          `)
+          .order("created_at", { ascending: false })
+          .limit(100) // Limit initial load
+      ]);
 
-      if (patientsData) setPatients(patientsData);
+      if (patientsRes.data) setPatients(patientsRes.data);
+      if (inventoryRes.data) setInventoryItems(inventoryRes.data);
 
-      // Fetch inventory for price lookup
-      const { data: inventoryData } = await supabase
-        .from("inventory")
-        .select("id, name, category, price, stock");
-
-      if (inventoryData) setInventoryItems(inventoryData);
-
-      // Fetch payments with patient names
-      const { data: paymentsData, error } = await supabase
-        .from("payments")
-        .select(`
-          *,
-          patients!payments_patient_id_fkey (name)
-        `)
-        .order("created_at", { ascending: false });
-
-      if (error) throw error;
-
-      const formattedPayments = paymentsData?.map((p) => ({
+      const formattedPayments = paymentsRes.data?.map((p) => ({
         ...p,
         patient_name: p.patients?.name || "Unknown",
       })) || [];
@@ -140,7 +137,7 @@ const Payments = () => {
     } finally {
       setLoading(false);
     }
-  };
+  }, []);
 
   const fetchPatientPrescribedItems = async (patientId: string, userId: string | null) => {
     try {
@@ -428,29 +425,30 @@ const Payments = () => {
     }
   };
 
-  const filteredPayments = payments.filter((p) =>
-    p.patient_name?.toLowerCase().includes(searchQuery.toLowerCase())
-  );
+  const filteredPayments = useMemo(() => 
+    payments.filter((p) =>
+      p.patient_name?.toLowerCase().includes(searchQuery.toLowerCase())
+    ), [payments, searchQuery]);
 
-  const filteredPatients = patients.filter((p) =>
-    p.name.toLowerCase().includes(patientSearch.toLowerCase()) ||
-    p.phone.includes(patientSearch)
-  );
+  const filteredPatients = useMemo(() => 
+    patients.filter((p) =>
+      p.name.toLowerCase().includes(patientSearch.toLowerCase()) ||
+      p.phone.includes(patientSearch)
+    ), [patients, patientSearch]);
 
-  const totalRevenue = payments
-    .filter((p) => p.status === "completed" || p.status === "partial")
-    .reduce((sum, p) => sum + Number(p.paid_amount || p.amount), 0);
-
-  const totalDue = payments
-    .filter((p) => p.status === "partial")
-    .reduce((sum, p) => sum + Number(p.balance_amount || 0), 0);
+  const { totalRevenue, totalDue } = useMemo(() => ({
+    totalRevenue: payments
+      .filter((p) => p.status === "completed" || p.status === "partial")
+      .reduce((sum, p) => sum + Number(p.paid_amount || p.amount), 0),
+    totalDue: payments
+      .filter((p) => p.status === "partial")
+      .reduce((sum, p) => sum + Number(p.balance_amount || 0), 0)
+  }), [payments]);
 
   if (loading) {
     return (
       <MainLayout>
-        <div className="flex h-64 items-center justify-center">
-          <Loader2 className="h-8 w-8 animate-spin text-primary" />
-        </div>
+        <PageSkeleton />
       </MainLayout>
     );
   }

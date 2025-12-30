@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback, useMemo, memo } from "react";
 import { MainLayout } from "@/components/layout/MainLayout";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
@@ -35,8 +35,9 @@ import {
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
 import { toast } from "sonner";
-import { PatientMedicalRecords } from "@/components/PatientMedicalRecords";
 import { formatAge } from "@/lib/helpers";
+import { PageSkeleton } from "@/components/ui/skeleton-card";
+import { PatientMedicalRecords } from "@/components/PatientMedicalRecords";
 
 interface Patient {
   id: string;
@@ -82,7 +83,7 @@ const Patients = () => {
     fetchPatients();
   }, []);
 
-  const fetchPatients = async () => {
+  const fetchPatients = useCallback(async () => {
     try {
       const [patientsRes, paymentsRes] = await Promise.all([
         supabase
@@ -124,9 +125,9 @@ const Patients = () => {
     } finally {
       setLoading(false);
     }
-  };
+  }, []);
 
-  const resetForm = () => {
+  const resetForm = useCallback(() => {
     setFormData({
       name: "",
       email: "",
@@ -137,7 +138,15 @@ const Patients = () => {
       allergies: "",
     });
     setEditingPatient(null);
-  };
+  }, []);
+
+  const filteredPatients = useMemo(() => 
+    patients.filter(
+      (patient) =>
+        patient.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
+        (patient.email && patient.email.toLowerCase().includes(searchQuery.toLowerCase())) ||
+        patient.phone.includes(searchQuery)
+    ), [patients, searchQuery]);
 
   const handleSubmit = async () => {
     // Validate name
@@ -244,19 +253,10 @@ const Patients = () => {
     }
   };
 
-  const filteredPatients = patients.filter(
-    (patient) =>
-      patient.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      (patient.email && patient.email.toLowerCase().includes(searchQuery.toLowerCase())) ||
-      patient.phone.includes(searchQuery)
-  );
-
   if (loading) {
     return (
       <MainLayout>
-        <div className="flex items-center justify-center h-64">
-          <div className="h-8 w-8 animate-spin rounded-full border-4 border-primary border-t-transparent" />
-        </div>
+        <PageSkeleton />
       </MainLayout>
     );
   }

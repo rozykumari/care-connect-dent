@@ -1,3 +1,4 @@
+import { memo } from "react";
 import { cn } from "@/lib/utils";
 import { LucideIcon } from "lucide-react";
 
@@ -12,10 +13,16 @@ interface StatsCardProps {
   className?: string;
 }
 
-export function StatsCard({ title, value, icon: Icon, trend, className }: StatsCardProps) {
+export const StatsCard = memo(function StatsCard({ 
+  title, 
+  value, 
+  icon: Icon, 
+  trend, 
+  className 
+}: StatsCardProps) {
   return (
     <div className={cn(
-      "glass-card rounded-xl p-6 animate-fade-in",
+      "glass-card rounded-xl p-6",
       className
     )}>
       <div className="flex items-start justify-between">
@@ -38,4 +45,4 @@ export function StatsCard({ title, value, icon: Icon, trend, className }: StatsC
       </div>
     </div>
   );
-}
+});

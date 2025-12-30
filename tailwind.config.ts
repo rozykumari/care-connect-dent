@@ -18,6 +18,10 @@ export default {
       },
     },
     extend: {
+      fontFamily: {
+        sans: ['Inter', '-apple-system', 'BlinkMacSystemFont', 'Segoe UI', 'sans-serif'],
+        display: ['Space Grotesk', '-apple-system', 'BlinkMacSystemFont', 'Segoe UI', 'sans-serif'],
+      },
       colors: {
         border: "hsl(var(--border))",
         input: "hsl(var(--input))",
@@ -77,11 +81,22 @@ export default {
           "4": "hsl(var(--chart-4))",
           "5": "hsl(var(--chart-5))",
         },
+        // Luxury accent colors
+        sapphire: "hsl(var(--sapphire))",
+        titanium: "hsl(var(--titanium))",
+        platinum: "hsl(var(--platinum))",
+        gold: "hsl(var(--gold))",
       },
       borderRadius: {
         lg: "var(--radius)",
         md: "calc(var(--radius) - 2px)",
         sm: "calc(var(--radius) - 4px)",
+      },
+      boxShadow: {
+        'sapphire': '0 0 20px -5px hsl(var(--sapphire) / 0.3)',
+        'sapphire-lg': '0 0 40px -10px hsl(var(--sapphire) / 0.4)',
+        'luxury': '0 4px 24px -4px hsl(var(--background) / 0.5), inset 0 1px 0 0 hsl(var(--foreground) / 0.03)',
+        'premium': '0 2px 8px -2px hsl(var(--background) / 0.3), inset 0 1px 0 0 hsl(var(--foreground) / 0.02)',
       },
       keyframes: {
         "accordion-down": {
@@ -100,12 +115,31 @@ export default {
           from: { opacity: "0", transform: "translateX(-10px)" },
           to: { opacity: "1", transform: "translateX(0)" },
         },
+        "glow-pulse": {
+          "0%, 100%": { 
+            boxShadow: "0 0 20px -5px hsl(var(--sapphire) / 0.3)" 
+          },
+          "50%": { 
+            boxShadow: "0 0 30px -5px hsl(var(--sapphire) / 0.5)" 
+          },
+        },
+        "shimmer": {
+          "0%": { backgroundPosition: "-200% 0" },
+          "100%": { backgroundPosition: "200% 0" },
+        },
       },
       animation: {
         "accordion-down": "accordion-down 0.2s ease-out",
         "accordion-up": "accordion-up 0.2s ease-out",
-        "fade-in": "fade-in 0.3s ease-out",
-        "slide-in": "slide-in 0.3s ease-out",
+        "fade-in": "fade-in 0.4s ease-out",
+        "slide-in": "slide-in 0.4s ease-out",
+        "glow-pulse": "glow-pulse 3s ease-in-out infinite",
+        "shimmer": "shimmer 2s linear infinite",
+      },
+      backgroundImage: {
+        'gradient-radial': 'radial-gradient(var(--tw-gradient-stops))',
+        'gradient-sapphire': 'linear-gradient(135deg, hsl(210 100% 60%) 0%, hsl(210 100% 45%) 50%, hsl(220 80% 40%) 100%)',
+        'titanium-texture': 'linear-gradient(135deg, transparent 40%, hsl(var(--foreground) / 0.02) 50%, transparent 60%)',
       },
     },
   },

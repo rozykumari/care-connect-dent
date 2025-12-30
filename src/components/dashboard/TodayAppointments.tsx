@@ -6,6 +6,7 @@ import { format } from "date-fns";
 import { Clock, User } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { ListCardSkeleton } from "@/components/ui/skeleton-card";
+import { formatAge } from "@/lib/helpers";
 
 interface Appointment {
   id: string;
@@ -14,10 +15,12 @@ interface Appointment {
   status: string;
   patients?: {
     name: string;
+    date_of_birth: string | null;
   };
   family_members?: {
     name: string;
     relationship: string;
+    date_of_birth: string | null;
   };
 }
 
@@ -32,6 +35,9 @@ const AppointmentItem = memo(function AppointmentItem({ apt }: { apt: Appointmen
   const patientName = apt.family_members 
     ? `${apt.family_members.name} (${apt.family_members.relationship})`
     : apt.patients?.name || "Unknown";
+  
+  const dateOfBirth = apt.family_members?.date_of_birth || apt.patients?.date_of_birth;
+  const age = dateOfBirth ? formatAge(dateOfBirth) : null;
 
   return (
     <div className="flex items-center justify-between p-4 rounded-lg bg-secondary/50 hover:bg-secondary transition-colors">
@@ -40,7 +46,10 @@ const AppointmentItem = memo(function AppointmentItem({ apt }: { apt: Appointmen
           <User className="h-6 w-6 text-primary" />
         </div>
         <div>
-          <p className="font-medium text-foreground">{patientName}</p>
+          <p className="font-medium text-foreground">
+            {patientName}
+            {age && <span className="text-muted-foreground ml-1 text-sm">({age})</span>}
+          </p>
           <p className="text-sm text-muted-foreground capitalize">
             {apt.type.replace("-", " ")}
           </p>
@@ -56,54 +65,64 @@ const AppointmentItem = memo(function AppointmentItem({ apt }: { apt: Appointmen
   );
 });
 
-export const TodayAppointments = memo(function TodayAppointments() {
+interface TodayAppointmentsProps {
+  selectedDate?: Date;
+}
+
+export const TodayAppointments = memo(function TodayAppointments({ selectedDate }: TodayAppointmentsProps) {
   const [appointments, setAppointments] = useState<Appointment[]>([]);
   const [loading, setLoading] = useState(true);
+  
+  const dateToFetch = selectedDate || new Date();
+  const isToday = format(dateToFetch, "yyyy-MM-dd") === format(new Date(), "yyyy-MM-dd");
 
-  const fetchTodayAppointments = useCallback(async () => {
+  const fetchAppointments = useCallback(async () => {
     try {
-      const today = format(new Date(), "yyyy-MM-dd");
+      setLoading(true);
+      const dateStr = format(dateToFetch, "yyyy-MM-dd");
       
       const { data, error } = await supabase
         .from("appointments")
         .select(`
           id, time, type, status,
-          patients(name),
-          family_members(name, relationship)
+          patients(name, date_of_birth),
+          family_members(name, relationship, date_of_birth)
         `)
-        .eq("date", today)
+        .eq("date", dateStr)
         .order("time", { ascending: true })
         .limit(10);
 
       if (error) throw error;
       setAppointments(data || []);
     } catch (error) {
-      console.error("Error fetching today's appointments:", error);
+      console.error("Error fetching appointments:", error);
     } finally {
       setLoading(false);
     }
-  }, []);
+  }, [dateToFetch]);
 
   useEffect(() => {
-    fetchTodayAppointments();
-  }, [fetchTodayAppointments]);
+    fetchAppointments();
+  }, [fetchAppointments]);
 
   if (loading) {
     return <ListCardSkeleton />;
   }
+
+  const title = isToday ? "Today's Appointments" : `Appointments - ${format(dateToFetch, "MMM d")}`;
 
   return (
     <Card className="glass-card">
       <CardHeader>
         <CardTitle className="text-xl font-semibold flex items-center gap-2">
           <Clock className="h-5 w-5 text-primary" />
-          Today's Appointments
+          {title}
         </CardTitle>
       </CardHeader>
       <CardContent>
         {appointments.length === 0 ? (
           <p className="text-muted-foreground text-center py-8">
-            No appointments scheduled for today
+            No appointments scheduled for {isToday ? "today" : format(dateToFetch, "MMM d, yyyy")}
           </p>
         ) : (
           <div className="space-y-3">

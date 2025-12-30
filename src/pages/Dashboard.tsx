@@ -166,7 +166,7 @@ const Dashboard = () => {
           {/* Charts and Lists */}
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
             <AppointmentChart />
-            <TodayAppointments />
+            <TodayAppointments selectedDate={selectedDate} />
           </div>
 
           {/* Recent Patients */}

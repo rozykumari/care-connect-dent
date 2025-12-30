@@ -4,20 +4,27 @@ import { supabase } from "@/integrations/supabase/client";
 import { Users, Phone, Mail } from "lucide-react";
 import { format } from "date-fns";
 import { ListCardSkeleton } from "@/components/ui/skeleton-card";
+import { formatAge } from "@/lib/helpers";
 
 interface Patient {
   id: string;
   name: string;
   phone: string;
   email: string | null;
+  date_of_birth: string | null;
   created_at: string;
 }
 
 const PatientItem = memo(function PatientItem({ patient }: { patient: Patient }) {
+  const age = patient.date_of_birth ? formatAge(patient.date_of_birth) : null;
+  
   return (
     <div className="p-4 rounded-lg bg-secondary/50 hover:bg-secondary transition-colors">
       <div className="flex items-center justify-between mb-2">
-        <p className="font-medium text-foreground">{patient.name}</p>
+        <p className="font-medium text-foreground">
+          {patient.name}
+          {age && <span className="text-muted-foreground ml-1 text-sm">({age})</span>}
+        </p>
         <p className="text-xs text-muted-foreground">
           {format(new Date(patient.created_at), "MMM d, yyyy")}
         </p>
@@ -46,7 +53,7 @@ export const RecentPatients = memo(function RecentPatients() {
     try {
       const { data, error } = await supabase
         .from("patients")
-        .select("id, name, phone, email, created_at")
+        .select("id, name, phone, email, date_of_birth, created_at")
         .order("created_at", { ascending: false })
         .limit(5);
 

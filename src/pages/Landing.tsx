@@ -1,5 +1,6 @@
 import { Link } from "react-router-dom";
 import { Button } from "@/components/ui/button";
+import { ThemeToggle } from "@/components/ThemeToggle";
 import { 
   ArrowRight, 
   Shield, 
@@ -37,7 +38,8 @@ const Landing = () => {
               <a href="#contact" className="text-sm text-muted-foreground hover:text-foreground transition-colors">Contact</a>
             </div>
             
-            <div className="flex items-center gap-3">
+            <div className="flex items-center gap-2">
+              <ThemeToggle />
               <Link to="/auth">
                 <Button variant="ghost" size="sm" className="text-muted-foreground hover:text-foreground">
                   Sign In

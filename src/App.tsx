@@ -32,6 +32,7 @@ const DoctorManagement = lazy(() => import("./pages/DoctorManagement"));
 const DoctorAvailability = lazy(() => import("./pages/DoctorAvailability"));
 const BookAppointment = lazy(() => import("./pages/BookAppointment"));
 const NotFound = lazy(() => import("./pages/NotFound"));
+const Landing = lazy(() => import("./pages/Landing"));
 
 // Configure React Query with optimized defaults
 const queryClient = new QueryClient({
@@ -55,6 +56,7 @@ const App = () => (
           <Suspense fallback={<PageLoader />}>
             <Routes>
               {/* Public Routes */}
+              <Route path="/welcome" element={<Landing />} />
               <Route path="/auth" element={<Auth />} />
               
               {/* Patient Routes */}

@@ -11,6 +11,9 @@ import { Checkbox } from '@/components/ui/checkbox';
 import { Badge } from '@/components/ui/badge';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Separator } from '@/components/ui/separator';
+import { Calendar } from '@/components/ui/calendar';
+import { format, differenceInYears, parseISO } from 'date-fns';
+import { cn } from '@/lib/utils';
 import { 
   Search, 
   Plus, 
@@ -29,7 +32,10 @@ import {
   Phone,
   Mail,
   Building2,
-  ChevronDown
+  ChevronDown,
+  CalendarIcon,
+  ChevronLeft,
+  ChevronRight
 } from 'lucide-react';
 import { toast } from 'sonner';
 import {
@@ -67,6 +73,7 @@ interface Patient {
   address: string | null;
   allergies: string | null;
   medical_history: string | null;
+  date_of_birth: string | null;
 }
 
 interface Prescription {
@@ -80,6 +87,7 @@ interface Prescription {
   time_evening: boolean;
   time_sos: boolean;
   price?: number;
+  prescription_date: string;
 }
 
 interface Procedure {
@@ -127,6 +135,12 @@ const DoctorManagement = () => {
   const [symptoms, setSymptoms] = useState('');
   const [examination, setExamination] = useState('');
   const [newProcedure, setNewProcedure] = useState('');
+  
+  // Date picker for prescriptions
+  const [selectedDate, setSelectedDate] = useState<Date>(new Date());
+  const [datePickerOpen, setDatePickerOpen] = useState(false);
+  const [showAllDates, setShowAllDates] = useState(false);
+  const [availableDates, setAvailableDates] = useState<string[]>([]);
 
   // Edit dialogs
   const [editingAllergies, setEditingAllergies] = useState(false);
@@ -200,7 +214,7 @@ const DoctorManagement = () => {
     try {
       const { data, error } = await supabase
         .from('patients')
-        .select('id, user_id, name, phone, address, allergies, medical_history')
+        .select('id, user_id, name, phone, address, allergies, medical_history, date_of_birth')
         .order('name');
       
       if (error) throw error;
@@ -217,7 +231,7 @@ const DoctorManagement = () => {
       const prescriptionsQuery = supabase
         .from('patient_prescriptions')
         .select('*')
-        .order('created_at', { ascending: false });
+        .order('prescription_date', { ascending: false });
 
       const proceduresQuery = supabase
         .from('patient_procedures')
@@ -233,10 +247,56 @@ const DoctorManagement = () => {
           : proceduresQuery.eq('patient_id', patientId),
       ]);
 
-      if (prescRes.data) setPrescriptions(prescRes.data);
+      if (prescRes.data) {
+        setPrescriptions(prescRes.data);
+        // Extract unique dates for the date picker
+        const dates = [...new Set(prescRes.data.map(p => p.prescription_date))].filter(Boolean);
+        setAvailableDates(dates);
+        // If we have prescriptions, default to the most recent date
+        if (dates.length > 0 && !showAllDates) {
+          setSelectedDate(parseISO(dates[0]));
+        }
+      }
       if (procRes.data) setProcedures(procRes.data);
     } catch (error) {
       toast.error('Failed to fetch patient data');
+    }
+  };
+
+  // Get age from date of birth
+  const getPatientAge = (dateOfBirth: string | null): string => {
+    if (!dateOfBirth) return 'N/A';
+    try {
+      const age = differenceInYears(new Date(), parseISO(dateOfBirth));
+      return `${age} yrs`;
+    } catch {
+      return 'N/A';
+    }
+  };
+
+  // Filter prescriptions by selected date
+  const filteredPrescriptions = showAllDates 
+    ? prescriptions 
+    : prescriptions.filter(p => p.prescription_date === format(selectedDate, 'yyyy-MM-dd'));
+
+  // Group prescriptions by date for "All Dates" view
+  const groupedPrescriptions = prescriptions.reduce((acc, p) => {
+    const date = p.prescription_date || 'Unknown';
+    if (!acc[date]) acc[date] = [];
+    acc[date].push(p);
+    return acc;
+  }, {} as Record<string, Prescription[]>);
+
+  // Navigate to adjacent dates with prescriptions
+  const navigateDate = (direction: 'prev' | 'next') => {
+    const currentDateStr = format(selectedDate, 'yyyy-MM-dd');
+    const sortedDates = [...availableDates].sort((a, b) => new Date(b).getTime() - new Date(a).getTime());
+    const currentIndex = sortedDates.indexOf(currentDateStr);
+    
+    if (direction === 'prev' && currentIndex < sortedDates.length - 1) {
+      setSelectedDate(parseISO(sortedDates[currentIndex + 1]));
+    } else if (direction === 'next' && currentIndex > 0) {
+      setSelectedDate(parseISO(sortedDates[currentIndex - 1]));
     }
   };
 
@@ -247,6 +307,9 @@ const DoctorManagement = () => {
     setSymptoms('');
     setExamination('');
     setNewProcedure('');
+    setSelectedDate(new Date());
+    setShowAllDates(false);
+    setAvailableDates([]);
   };
 
   const filteredPatients = patients.filter(p => 
@@ -308,6 +371,7 @@ const DoctorManagement = () => {
       time_noon: medicineForm.time_noon,
       time_evening: medicineForm.time_evening,
       time_sos: medicineForm.time_sos,
+      prescription_date: format(selectedDate, 'yyyy-MM-dd'),
     });
 
     if (error) {
@@ -542,7 +606,12 @@ const DoctorManagement = () => {
                         <User className="h-6 w-6 text-primary" />
                       </div>
                       <div>
-                        <h2 className="text-lg font-semibold print:text-base">Patient: {selectedPatient.name}</h2>
+                        <h2 className="text-lg font-semibold print:text-base">
+                          {selectedPatient.name}
+                          <Badge variant="secondary" className="ml-2 text-xs">
+                            {getPatientAge(selectedPatient.date_of_birth)}
+                          </Badge>
+                        </h2>
                         <p className="text-sm text-muted-foreground">ID: {selectedPatient.id.slice(0, 8)}...</p>
                         {selectedPatient.phone && (
                           <p className="text-sm text-muted-foreground">Phone: {selectedPatient.phone}</p>
@@ -750,44 +819,182 @@ const DoctorManagement = () => {
             {/* Right Column - Medicines - hide on print if empty */}
             <div className={`${prescriptions.length === 0 ? 'print:hidden' : ''}`}>
               <Card className="print:border-0 print:shadow-none">
-                <CardHeader className="pb-3 flex flex-row items-center justify-between print:pb-1">
-                  <CardTitle className="text-base flex items-center gap-2 print:text-sm">
-                    <Pill className="h-4 w-4 print:h-3 print:w-3" />
-                    Medicines
-                  </CardTitle>
-                  <Button 
-                    size="sm" 
-                    onClick={() => setMedicineDialogOpen(true)}
-                    className="h-8 print:hidden"
-                  >
-                    <Plus className="h-3 w-3 mr-1" /> Add
-                  </Button>
+                <CardHeader className="pb-3 print:pb-1 space-y-3">
+                  <div className="flex flex-row items-center justify-between">
+                    <CardTitle className="text-base flex items-center gap-2 print:text-sm">
+                      <Pill className="h-4 w-4 print:h-3 print:w-3" />
+                      Medicines
+                    </CardTitle>
+                    <Button 
+                      size="sm" 
+                      onClick={() => setMedicineDialogOpen(true)}
+                      className="h-8 print:hidden"
+                    >
+                      <Plus className="h-3 w-3 mr-1" /> Add
+                    </Button>
+                  </div>
+                  
+                  {/* Date Selection for Prescriptions */}
+                  <div className="flex flex-col sm:flex-row items-start sm:items-center gap-2 print:hidden">
+                    <div className="flex gap-1">
+                      <Button
+                        variant={showAllDates ? "default" : "outline"}
+                        size="sm"
+                        onClick={() => setShowAllDates(true)}
+                        className="h-7 text-xs"
+                      >
+                        All Dates
+                      </Button>
+                      <Button
+                        variant={!showAllDates ? "default" : "outline"}
+                        size="sm"
+                        onClick={() => setShowAllDates(false)}
+                        className="h-7 text-xs"
+                      >
+                        By Date
+                      </Button>
+                    </div>
+                    
+                    {!showAllDates && (
+                      <div className="flex items-center gap-1">
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          className="h-7 w-7"
+                          onClick={() => navigateDate('prev')}
+                          disabled={availableDates.indexOf(format(selectedDate, 'yyyy-MM-dd')) >= availableDates.length - 1}
+                        >
+                          <ChevronLeft className="h-4 w-4" />
+                        </Button>
+                        
+                        <Popover open={datePickerOpen} onOpenChange={setDatePickerOpen}>
+                          <PopoverTrigger asChild>
+                            <Button 
+                              variant="outline" 
+                              size="sm"
+                              className={cn(
+                                "h-7 text-xs justify-start",
+                                !selectedDate && "text-muted-foreground"
+                              )}
+                            >
+                              <CalendarIcon className="h-3 w-3 mr-1" />
+                              {format(selectedDate, 'dd MMM yyyy')}
+                            </Button>
+                          </PopoverTrigger>
+                          <PopoverContent className="w-auto p-0" align="start">
+                            <Calendar
+                              mode="single"
+                              selected={selectedDate}
+                              onSelect={(date) => {
+                                if (date) {
+                                  setSelectedDate(date);
+                                  setDatePickerOpen(false);
+                                }
+                              }}
+                              initialFocus
+                              className={cn("p-3 pointer-events-auto")}
+                            />
+                          </PopoverContent>
+                        </Popover>
+                        
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          className="h-7 w-7"
+                          onClick={() => navigateDate('next')}
+                          disabled={availableDates.indexOf(format(selectedDate, 'yyyy-MM-dd')) <= 0}
+                        >
+                          <ChevronRight className="h-4 w-4" />
+                        </Button>
+                      </div>
+                    )}
+                  </div>
+                  
+                  {availableDates.length > 0 && !showAllDates && (
+                    <div className="flex flex-wrap gap-1 print:hidden">
+                      {availableDates.slice(0, 5).map((date) => (
+                        <Button
+                          key={date}
+                          variant={format(selectedDate, 'yyyy-MM-dd') === date ? "default" : "outline"}
+                          size="sm"
+                          className="h-6 text-xs"
+                          onClick={() => setSelectedDate(parseISO(date))}
+                        >
+                          {format(parseISO(date), 'dd MMM')}
+                        </Button>
+                      ))}
+                    </div>
+                  )}
                 </CardHeader>
                 <CardContent className="print:pt-0">
                   <ScrollArea className="h-[300px] md:h-[400px] print:h-auto print:overflow-visible">
-                    {prescriptions.length === 0 ? (
-                      <p className="text-sm text-muted-foreground text-center py-8 print:hidden">No medicines prescribed</p>
+                    {showAllDates ? (
+                      // Grouped by date view
+                      prescriptions.length === 0 ? (
+                        <p className="text-sm text-muted-foreground text-center py-8 print:hidden">No medicines prescribed</p>
+                      ) : (
+                        <div className="space-y-4 pr-2 print:space-y-1 print:pr-0">
+                          {Object.entries(groupedPrescriptions)
+                            .sort(([a], [b]) => new Date(b).getTime() - new Date(a).getTime())
+                            .map(([date, meds]) => (
+                              <div key={date} className="space-y-2">
+                                <div className="flex items-center gap-2 sticky top-0 bg-background py-1">
+                                  <CalendarIcon className="h-3 w-3 text-muted-foreground" />
+                                  <span className="text-xs font-medium text-muted-foreground">
+                                    {format(parseISO(date), 'dd MMM yyyy')}
+                                  </span>
+                                  <Badge variant="secondary" className="text-xs">{meds.length}</Badge>
+                                </div>
+                                {meds.map((med, index) => (
+                                  <div key={med.id} className="flex items-start justify-between p-3 border rounded-lg print:p-1 print:border-0 print:border-b print:rounded-none">
+                                    <div className="space-y-1 flex-1 print:space-y-0 print:flex print:items-center print:gap-2">
+                                      <span className="hidden print:inline text-xs font-medium">{index + 1}.</span>
+                                      <p className="font-medium text-sm print:text-xs print:inline">{med.name}</p>
+                                      <p className="text-xs text-muted-foreground print:inline">- {med.dose}</p>
+                                      <div className="pt-1 print:pt-0 print:inline print:ml-2">{renderTimingBadges(med)}</div>
+                                    </div>
+                                    <Button 
+                                      variant="ghost" 
+                                      size="icon" 
+                                      onClick={() => deletePrescription(med.id)}
+                                      className="h-8 w-8 print:hidden"
+                                    >
+                                      <Trash2 className="h-4 w-4 text-destructive" />
+                                    </Button>
+                                  </div>
+                                ))}
+                              </div>
+                            ))}
+                        </div>
+                      )
                     ) : (
-                      <div className="space-y-2 pr-2 print:space-y-1 print:pr-0">
-                        {prescriptions.map((med, index) => (
-                          <div key={med.id} className="flex items-start justify-between p-3 border rounded-lg print:p-1 print:border-0 print:border-b print:rounded-none">
-                            <div className="space-y-1 flex-1 print:space-y-0 print:flex print:items-center print:gap-2">
-                              <span className="hidden print:inline text-xs font-medium">{index + 1}.</span>
-                              <p className="font-medium text-sm print:text-xs print:inline">{med.name}</p>
-                              <p className="text-xs text-muted-foreground print:inline">- {med.dose}</p>
-                              <div className="pt-1 print:pt-0 print:inline print:ml-2">{renderTimingBadges(med)}</div>
+                      // By date view
+                      filteredPrescriptions.length === 0 ? (
+                        <p className="text-sm text-muted-foreground text-center py-8 print:hidden">
+                          No medicines for {format(selectedDate, 'dd MMM yyyy')}
+                        </p>
+                      ) : (
+                        <div className="space-y-2 pr-2 print:space-y-1 print:pr-0">
+                          {filteredPrescriptions.map((med, index) => (
+                            <div key={med.id} className="flex items-start justify-between p-3 border rounded-lg print:p-1 print:border-0 print:border-b print:rounded-none">
+                              <div className="space-y-1 flex-1 print:space-y-0 print:flex print:items-center print:gap-2">
+                                <span className="hidden print:inline text-xs font-medium">{index + 1}.</span>
+                                <p className="font-medium text-sm print:text-xs print:inline">{med.name}</p>
+                                <p className="text-xs text-muted-foreground print:inline">- {med.dose}</p>
+                                <div className="pt-1 print:pt-0 print:inline print:ml-2">{renderTimingBadges(med)}</div>
+                              </div>
+                              <Button 
+                                variant="ghost" 
+                                size="icon" 
+                                onClick={() => deletePrescription(med.id)}
+                                className="h-8 w-8 print:hidden"
+                              >
+                                <Trash2 className="h-4 w-4 text-destructive" />
+                              </Button>
                             </div>
-                            <Button 
-                              variant="ghost" 
-                              size="icon" 
-                              onClick={() => deletePrescription(med.id)}
-                              className="h-8 w-8 print:hidden"
-                            >
-                              <Trash2 className="h-4 w-4 text-destructive" />
-                            </Button>
-                          </div>
-                        ))}
-                      </div>
+                          ))}
+                        </div>
+                      )
                     )}
                   </ScrollArea>
                 </CardContent>

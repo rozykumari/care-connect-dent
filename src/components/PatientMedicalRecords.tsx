@@ -90,6 +90,7 @@ export const PatientMedicalRecords = ({ patient, open, onOpenChange }: PatientMe
   
   // Date selection for prescriptions
   const [selectedDate, setSelectedDate] = useState<Date>(new Date());
+  const [showAllDates, setShowAllDates] = useState(true); // Default to show all
   const [showAddPrescription, setShowAddPrescription] = useState(false);
   
   // New prescription form
@@ -107,6 +108,16 @@ export const PatientMedicalRecords = ({ patient, open, onOpenChange }: PatientMe
       fetchMedicalRecords();
     }
   }, [patient, open]);
+
+  // Auto-select the most recent prescription date when prescriptions change
+  useEffect(() => {
+    if (prescriptions.length > 0) {
+      const mostRecentDate = prescriptions.reduce((latest, p) => {
+        return p.prescription_date > latest ? p.prescription_date : latest;
+      }, prescriptions[0].prescription_date);
+      setSelectedDate(new Date(mostRecentDate));
+    }
+  }, [prescriptions]);
 
   const fetchMedicalRecords = async () => {
     if (!patient) return;
@@ -368,9 +379,33 @@ export const PatientMedicalRecords = ({ patient, open, onOpenChange }: PatientMe
 
                 {/* Prescriptions Tab */}
                 <TabsContent value="prescriptions" className="mt-4 space-y-4">
-                  {/* Date Selector */}
+                  {/* Controls */}
                   <div className="flex items-center justify-between gap-2 flex-wrap">
                     <div className="flex items-center gap-2">
+                      <Button 
+                        variant={showAllDates ? "default" : "outline"} 
+                        size="sm"
+                        onClick={() => setShowAllDates(true)}
+                      >
+                        All Dates
+                      </Button>
+                      <Button 
+                        variant={!showAllDates ? "default" : "outline"} 
+                        size="sm"
+                        onClick={() => setShowAllDates(false)}
+                      >
+                        By Date
+                      </Button>
+                    </div>
+                    <Button size="sm" onClick={() => setShowAddPrescription(true)}>
+                      <Plus className="h-4 w-4 mr-1" />
+                      Add Prescription
+                    </Button>
+                  </div>
+
+                  {/* Date Selector - only show when filtering by date */}
+                  {!showAllDates && (
+                    <div className="flex items-center gap-2 flex-wrap">
                       <Button variant="outline" size="icon" onClick={() => navigateDate("prev")}>
                         <ChevronLeft className="h-4 w-4" />
                       </Button>
@@ -394,28 +429,23 @@ export const PatientMedicalRecords = ({ patient, open, onOpenChange }: PatientMe
                       <Button variant="outline" size="icon" onClick={() => navigateDate("next")}>
                         <ChevronRight className="h-4 w-4" />
                       </Button>
-                    </div>
-                    <Button size="sm" onClick={() => setShowAddPrescription(true)}>
-                      <Plus className="h-4 w-4 mr-1" />
-                      Add Prescription
-                    </Button>
-                  </div>
-
-                  {/* Quick date navigation for dates with prescriptions */}
-                  {prescriptionDates.length > 0 && (
-                    <div className="flex flex-wrap gap-1">
-                      <span className="text-xs text-muted-foreground mr-2">Dates with prescriptions:</span>
-                      {prescriptionDates.slice(0, 5).map((dateStr) => (
-                        <Button
-                          key={dateStr}
-                          variant={format(selectedDate, "yyyy-MM-dd") === dateStr ? "default" : "outline"}
-                          size="sm"
-                          className="text-xs h-7"
-                          onClick={() => setSelectedDate(new Date(dateStr))}
-                        >
-                          {format(new Date(dateStr), "MMM d")}
-                        </Button>
-                      ))}
+                      
+                      {/* Quick date navigation for dates with prescriptions */}
+                      {prescriptionDates.length > 0 && (
+                        <div className="flex flex-wrap gap-1 ml-2">
+                          {prescriptionDates.slice(0, 5).map((dateStr) => (
+                            <Button
+                              key={dateStr}
+                              variant={format(selectedDate, "yyyy-MM-dd") === dateStr ? "secondary" : "ghost"}
+                              size="sm"
+                              className="text-xs h-7"
+                              onClick={() => setSelectedDate(new Date(dateStr))}
+                            >
+                              {format(new Date(dateStr), "MMM d")}
+                            </Button>
+                          ))}
+                        </div>
+                      )}
                     </div>
                   )}
 
@@ -428,6 +458,29 @@ export const PatientMedicalRecords = ({ patient, open, onOpenChange }: PatientMe
                           <X className="h-4 w-4" />
                         </Button>
                       </div>
+                      
+                      {/* Date picker for new prescription */}
+                      <div className="mb-3">
+                        <Label className="text-xs mb-2 block">Prescription Date</Label>
+                        <Popover>
+                          <PopoverTrigger asChild>
+                            <Button variant="outline" className="w-full justify-start">
+                              <CalendarIcon className="h-4 w-4 mr-2" />
+                              {format(selectedDate, "MMM d, yyyy")}
+                            </Button>
+                          </PopoverTrigger>
+                          <PopoverContent className="w-auto p-0" align="start">
+                            <Calendar
+                              mode="single"
+                              selected={selectedDate}
+                              onSelect={(date) => date && setSelectedDate(date)}
+                              initialFocus
+                              className={cn("p-3 pointer-events-auto")}
+                            />
+                          </PopoverContent>
+                        </Popover>
+                      </div>
+                      
                       <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                         <div className="space-y-2">
                           <Label className="text-xs">Medicine Name *</Label>
@@ -485,36 +538,84 @@ export const PatientMedicalRecords = ({ patient, open, onOpenChange }: PatientMe
                     </Card>
                   )}
 
-                  {/* Prescriptions for selected date */}
-                  {prescriptionsForDate.length === 0 ? (
-                    <Card className="p-8 text-center">
-                      <Pill className="h-8 w-8 text-muted-foreground mx-auto mb-2" />
-                      <p className="text-muted-foreground">No prescriptions for {format(selectedDate, "MMM d, yyyy")}</p>
-                    </Card>
-                  ) : (
-                    <div className="space-y-2">
-                      {prescriptionsForDate.map((pres) => (
-                        <Card key={pres.id} className="p-3">
-                          <div className="flex items-start justify-between gap-3">
-                            <div className="flex-1">
-                              <div className="flex items-center gap-2">
-                                <span className="font-medium text-sm">{pres.name}</span>
-                                <span className="text-muted-foreground text-sm">- {pres.dose}</span>
-                              </div>
-                              <div className="mt-2">{renderTimingBadges(pres)}</div>
+                  {/* Prescriptions display */}
+                  {showAllDates ? (
+                    // Show all prescriptions grouped by date
+                    prescriptions.length === 0 ? (
+                      <Card className="p-8 text-center">
+                        <Pill className="h-8 w-8 text-muted-foreground mx-auto mb-2" />
+                        <p className="text-muted-foreground">No prescriptions found</p>
+                      </Card>
+                    ) : (
+                      <div className="space-y-4">
+                        {prescriptionDates.map((dateStr) => (
+                          <div key={dateStr}>
+                            <div className="flex items-center gap-2 mb-2">
+                              <CalendarIcon className="h-4 w-4 text-primary" />
+                              <h4 className="font-medium text-sm">{format(new Date(dateStr), "MMMM d, yyyy")}</h4>
+                              <Badge variant="secondary" className="text-xs">
+                                {prescriptions.filter(p => p.prescription_date === dateStr).length} items
+                              </Badge>
                             </div>
-                            <Button
-                              variant="ghost"
-                              size="icon"
-                              className="text-destructive hover:text-destructive"
-                              onClick={() => handleDeletePrescription(pres.id)}
-                            >
-                              <X className="h-4 w-4" />
-                            </Button>
+                            <div className="space-y-2 pl-6">
+                              {prescriptions.filter(p => p.prescription_date === dateStr).map((pres) => (
+                                <Card key={pres.id} className="p-3">
+                                  <div className="flex items-start justify-between gap-3">
+                                    <div className="flex-1">
+                                      <div className="flex items-center gap-2">
+                                        <span className="font-medium text-sm">{pres.name}</span>
+                                        <span className="text-muted-foreground text-sm">- {pres.dose}</span>
+                                      </div>
+                                      <div className="mt-2">{renderTimingBadges(pres)}</div>
+                                    </div>
+                                    <Button
+                                      variant="ghost"
+                                      size="icon"
+                                      className="text-destructive hover:text-destructive"
+                                      onClick={() => handleDeletePrescription(pres.id)}
+                                    >
+                                      <X className="h-4 w-4" />
+                                    </Button>
+                                  </div>
+                                </Card>
+                              ))}
+                            </div>
                           </div>
-                        </Card>
-                      ))}
-                    </div>
+                        ))}
+                      </div>
+                    )
+                  ) : (
+                    // Show prescriptions for selected date only
+                    prescriptionsForDate.length === 0 ? (
+                      <Card className="p-8 text-center">
+                        <Pill className="h-8 w-8 text-muted-foreground mx-auto mb-2" />
+                        <p className="text-muted-foreground">No prescriptions for {format(selectedDate, "MMM d, yyyy")}</p>
+                      </Card>
+                    ) : (
+                      <div className="space-y-2">
+                        {prescriptionsForDate.map((pres) => (
+                          <Card key={pres.id} className="p-3">
+                            <div className="flex items-start justify-between gap-3">
+                              <div className="flex-1">
+                                <div className="flex items-center gap-2">
+                                  <span className="font-medium text-sm">{pres.name}</span>
+                                  <span className="text-muted-foreground text-sm">- {pres.dose}</span>
+                                </div>
+                                <div className="mt-2">{renderTimingBadges(pres)}</div>
+                              </div>
+                              <Button
+                                variant="ghost"
+                                size="icon"
+                                className="text-destructive hover:text-destructive"
+                                onClick={() => handleDeletePrescription(pres.id)}
+                              >
+                                <X className="h-4 w-4" />
+                              </Button>
+                            </div>
+                          </Card>
+                        ))}
+                      </div>
+                    )
                   )}
                 </TabsContent>
 

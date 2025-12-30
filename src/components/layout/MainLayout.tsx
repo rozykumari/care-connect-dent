@@ -26,23 +26,30 @@ export const MainLayout = memo(function MainLayout({
         <AppSidebar />
         <main className="flex-1 overflow-auto flex flex-col print:overflow-visible">
           {/* Header with sidebar trigger - hidden on print */}
-          <header className="sticky top-0 z-40 flex h-14 items-center gap-4 border-b bg-background px-4 print:hidden">
-            <SidebarTrigger className="h-8 w-8">
+          <header className="sticky top-0 z-40 flex h-14 items-center gap-4 border-b border-border/50 bg-background/80 backdrop-blur-xl px-4 print:hidden">
+            <SidebarTrigger className="h-8 w-8 text-muted-foreground hover:text-foreground transition-colors">
               <Menu className="h-5 w-5" />
             </SidebarTrigger>
             <div className="flex-1">
-              <span className="font-semibold text-foreground">DentaCare</span>
+              <span className="font-display font-semibold text-foreground tracking-tight">DentaCare</span>
+              <span className="hidden sm:inline text-muted-foreground text-sm ml-2">|</span>
+              <span className="hidden sm:inline text-muted-foreground text-xs ml-2 uppercase tracking-widest">Precision Medicine</span>
             </div>
-            <div className="flex items-center gap-2">
+            <div className="flex items-center gap-1">
               {isPatient && (
                 <Link to="/profile">
-                  <Button variant="ghost" size="icon" className="h-8 w-8">
+                  <Button variant="ghost" size="icon" className="h-8 w-8 text-muted-foreground hover:text-foreground hover:bg-primary/10 transition-colors">
                     <User className="h-4 w-4" />
                   </Button>
                 </Link>
               )}
               {user && (
-                <Button variant="ghost" size="icon" className="h-8 w-8" onClick={signOut}>
+                <Button 
+                  variant="ghost" 
+                  size="icon" 
+                  className="h-8 w-8 text-muted-foreground hover:text-destructive hover:bg-destructive/10 transition-colors" 
+                  onClick={signOut}
+                >
                   <LogOut className="h-4 w-4" />
                 </Button>
               )}

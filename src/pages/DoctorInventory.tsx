@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo, useCallback, CSSProperties } from "react";
 import { MainLayout } from "@/components/layout/MainLayout";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
@@ -13,14 +13,6 @@ import {
   DialogTitle,
   DialogTrigger,
 } from "@/components/ui/dialog";
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from "@/components/ui/table";
 import {
   Select,
   SelectContent,
@@ -44,6 +36,7 @@ import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
+import { VirtualizedTable, VirtualizedList } from "@/components/ui/virtualized-table";
 
 interface InventoryItem {
   id: string;
@@ -199,7 +192,7 @@ const DoctorInventory = () => {
     }
   };
 
-  const filteredInventory = inventory.filter((item) => {
+  const filteredInventory = useMemo(() => inventory.filter((item) => {
     const matchesSearch = item.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
       (item.description && item.description.toLowerCase().includes(searchQuery.toLowerCase()));
     const matchesCategory = categoryFilter === "all" || item.category === categoryFilter;
@@ -208,7 +201,7 @@ const DoctorInventory = () => {
       (statusFilter === "low" && isLowStock) || 
       (statusFilter === "in-stock" && !isLowStock);
     return matchesSearch && matchesCategory && matchesStatus;
-  });
+  }), [inventory, searchQuery, categoryFilter, statusFilter]);
 
   // Low stock items based on selected category (exclude procedure/examination from low stock)
   const lowStockItems = inventory.filter((item) => {
@@ -453,58 +446,120 @@ const DoctorInventory = () => {
         {/* Desktop Table View */}
         <Card className="glass-card hidden md:block">
           <CardContent className="p-0">
-            <Table>
-              <TableHeader>
-                <TableRow>
-                  <TableHead>Item</TableHead>
-                  <TableHead>Category</TableHead>
-                  <TableHead>Stock</TableHead>
-                  <TableHead>Price</TableHead>
-                  <TableHead>Expiry</TableHead>
-                  <TableHead>Status</TableHead>
-                  <TableHead className="text-right">Actions</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {filteredInventory.length === 0 ? (
-                  <TableRow>
-                    <TableCell colSpan={7} className="text-center py-8">
-                      <p className="text-muted-foreground">No items found</p>
-                    </TableCell>
-                  </TableRow>
-                ) : (
-                  filteredInventory.map((item) => (
-                    <TableRow key={item.id}>
-                      <TableCell>
-                        <div className="flex items-center gap-3">
-                          <div className="w-8 h-8 rounded-full bg-primary/10 flex items-center justify-center">
-                            {getCategoryIcon(item.category)}
-                          </div>
-                          <div>
-                            <p className="font-medium">{item.name}</p>
-                            {item.description && (
-                              <p className="text-xs text-muted-foreground truncate max-w-[200px]">
-                                {item.description}
-                              </p>
-                            )}
-                          </div>
+            <VirtualizedTable
+              data={filteredInventory}
+              rowHeight={72}
+              height={500}
+              keyExtractor={(item) => item.id}
+              emptyMessage="No items found"
+              columns={[
+                {
+                  key: "item",
+                  header: "Item",
+                  render: (item) => (
+                    <div className="flex items-center gap-3">
+                      <div className="w-8 h-8 rounded-full bg-primary/10 flex items-center justify-center">
+                        {getCategoryIcon(item.category)}
+                      </div>
+                      <div>
+                        <p className="font-medium">{item.name}</p>
+                        {item.description && (
+                          <p className="text-xs text-muted-foreground truncate max-w-[200px]">
+                            {item.description}
+                          </p>
+                        )}
+                      </div>
+                    </div>
+                  ),
+                },
+                {
+                  key: "category",
+                  header: "Category",
+                  render: (item) => (
+                    <Badge variant="outline" className="capitalize">
+                      {item.category}
+                    </Badge>
+                  ),
+                },
+                {
+                  key: "stock",
+                  header: "Stock",
+                  render: (item) => `${item.stock} ${item.unit}`,
+                },
+                {
+                  key: "price",
+                  header: "Price",
+                  render: (item) => `₹${Number(item.price).toFixed(2)}`,
+                },
+                {
+                  key: "expiry",
+                  header: "Expiry",
+                  render: (item) => item.expiry_date ? format(new Date(item.expiry_date), "MMM yyyy") : "-",
+                },
+                {
+                  key: "status",
+                  header: "Status",
+                  render: (item) => (
+                    <Badge
+                      className={cn(
+                        item.stock <= item.reorder_level
+                          ? "bg-destructive/20 text-destructive border-destructive/30"
+                          : "bg-emerald-500/20 text-emerald-700 border-emerald-500/30"
+                      )}
+                    >
+                      {item.stock <= item.reorder_level ? "Low Stock" : "In Stock"}
+                    </Badge>
+                  ),
+                },
+                {
+                  key: "actions",
+                  header: "Actions",
+                  className: "text-right",
+                  render: (item) => (
+                    <div className="flex items-center justify-end gap-2">
+                      <Button variant="ghost" size="icon" onClick={() => handleEdit(item)}>
+                        <Edit className="h-4 w-4" />
+                      </Button>
+                      <Button variant="ghost" size="icon" onClick={() => setDeleteId(item.id)}>
+                        <Trash2 className="h-4 w-4 text-destructive" />
+                      </Button>
+                    </div>
+                  ),
+                },
+              ]}
+            />
+          </CardContent>
+        </Card>
+
+        {/* Mobile Card View */}
+        <div className="md:hidden">
+          <VirtualizedList
+            data={filteredInventory}
+            itemHeight={140}
+            height={600}
+            keyExtractor={(item) => item.id}
+            emptyMessage="No items found"
+            renderItem={(item, index, style) => (
+              <div style={style} className="p-1">
+                <Card className="p-4">
+                  <div className="flex items-start justify-between gap-3">
+                    <div className="flex items-start gap-3 flex-1 min-w-0">
+                      <div className="w-10 h-10 rounded-full bg-primary/10 flex items-center justify-center flex-shrink-0">
+                        {getCategoryIcon(item.category)}
+                      </div>
+                      <div className="min-w-0 flex-1">
+                        <div className="flex items-center gap-2">
+                          <p className="font-medium truncate">{item.name}</p>
+                          <Badge variant="outline" className="capitalize text-xs">
+                            {item.category}
+                          </Badge>
                         </div>
-                      </TableCell>
-                      <TableCell>
-                        <Badge variant="outline" className="capitalize">
-                          {item.category}
-                        </Badge>
-                      </TableCell>
-                      <TableCell>
-                        {item.stock} {item.unit}
-                      </TableCell>
-                      <TableCell>₹{Number(item.price).toFixed(2)}</TableCell>
-                      <TableCell>
-                        {item.expiry_date ? format(new Date(item.expiry_date), "MMM yyyy") : "-"}
-                      </TableCell>
-                      <TableCell>
+                        <p className="text-sm text-muted-foreground mt-1">
+                          {item.stock} {item.unit} • ₹{Number(item.price).toFixed(2)}
+                        </p>
                         <Badge
                           className={cn(
+                            "mt-2 text-xs",
                             item.stock <= item.reorder_level
                               ? "bg-destructive/20 text-destructive border-destructive/30"
                               : "bg-emerald-500/20 text-emerald-700 border-emerald-500/30"
@@ -512,73 +567,21 @@ const DoctorInventory = () => {
                         >
                           {item.stock <= item.reorder_level ? "Low Stock" : "In Stock"}
                         </Badge>
-                      </TableCell>
-                      <TableCell className="text-right">
-                        <div className="flex items-center justify-end gap-2">
-                          <Button variant="ghost" size="icon" onClick={() => handleEdit(item)}>
-                            <Edit className="h-4 w-4" />
-                          </Button>
-                          <Button variant="ghost" size="icon" onClick={() => setDeleteId(item.id)}>
-                            <Trash2 className="h-4 w-4 text-destructive" />
-                          </Button>
-                        </div>
-                      </TableCell>
-                    </TableRow>
-                  ))
-                )}
-              </TableBody>
-            </Table>
-          </CardContent>
-        </Card>
-
-        {/* Mobile Card View */}
-        <div className="md:hidden space-y-3">
-          {filteredInventory.length === 0 ? (
-            <Card className="p-8 text-center">
-              <p className="text-muted-foreground">No items found</p>
-            </Card>
-          ) : (
-            filteredInventory.map((item) => (
-              <Card key={item.id} className="p-4">
-                <div className="flex items-start justify-between gap-3">
-                  <div className="flex items-start gap-3 flex-1 min-w-0">
-                    <div className="w-10 h-10 rounded-full bg-primary/10 flex items-center justify-center flex-shrink-0">
-                      {getCategoryIcon(item.category)}
-                    </div>
-                    <div className="min-w-0 flex-1">
-                      <div className="flex items-center gap-2">
-                        <p className="font-medium truncate">{item.name}</p>
-                        <Badge variant="outline" className="capitalize text-xs">
-                          {item.category}
-                        </Badge>
                       </div>
-                      <p className="text-sm text-muted-foreground mt-1">
-                        {item.stock} {item.unit} • ₹{Number(item.price).toFixed(2)}
-                      </p>
-                      <Badge
-                        className={cn(
-                          "mt-2 text-xs",
-                          item.stock <= item.reorder_level
-                            ? "bg-destructive/20 text-destructive border-destructive/30"
-                            : "bg-emerald-500/20 text-emerald-700 border-emerald-500/30"
-                        )}
-                      >
-                        {item.stock <= item.reorder_level ? "Low Stock" : "In Stock"}
-                      </Badge>
+                    </div>
+                    <div className="flex items-center gap-1">
+                      <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => handleEdit(item)}>
+                        <Edit className="h-4 w-4" />
+                      </Button>
+                      <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => setDeleteId(item.id)}>
+                        <Trash2 className="h-4 w-4 text-destructive" />
+                      </Button>
                     </div>
                   </div>
-                  <div className="flex items-center gap-1">
-                    <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => handleEdit(item)}>
-                      <Edit className="h-4 w-4" />
-                    </Button>
-                    <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => setDeleteId(item.id)}>
-                      <Trash2 className="h-4 w-4 text-destructive" />
-                    </Button>
-                  </div>
-                </div>
-              </Card>
-            ))
-          )}
+                </Card>
+              </div>
+            )}
+          />
         </div>
       </div>
 

@@ -4,6 +4,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Card, CardContent } from "@/components/ui/card";
+import { Badge } from "@/components/ui/badge";
 import {
   Dialog,
   DialogContent,
@@ -20,7 +21,7 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { format } from "date-fns";
-import { Plus, Search, User, Phone, Mail, Edit, Trash2, FileText } from "lucide-react";
+import { Plus, Search, User, Phone, Mail, Edit, Trash2, FileText, AlertCircle } from "lucide-react";
 import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
 import {
@@ -35,6 +36,7 @@ import {
 } from "@/components/ui/alert-dialog";
 import { toast } from "sonner";
 import { PatientMedicalRecords } from "@/components/PatientMedicalRecords";
+import { formatAge } from "@/lib/helpers";
 
 interface Patient {
   id: string;
@@ -49,8 +51,15 @@ interface Patient {
   user_id: string | null;
 }
 
+interface PatientDue {
+  patient_id: string;
+  balance_amount: number;
+  due_date: string | null;
+}
+
 const Patients = () => {
   const [patients, setPatients] = useState<Patient[]>([]);
+  const [patientDues, setPatientDues] = useState<Map<string, PatientDue>>(new Map());
   const [loading, setLoading] = useState(true);
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [searchQuery, setSearchQuery] = useState("");
@@ -75,13 +84,40 @@ const Patients = () => {
 
   const fetchPatients = async () => {
     try {
-      const { data, error } = await supabase
-        .from("patients")
-        .select("*")
-        .order("created_at", { ascending: false });
+      const [patientsRes, paymentsRes] = await Promise.all([
+        supabase
+          .from("patients")
+          .select("*")
+          .order("created_at", { ascending: false }),
+        supabase
+          .from("payments")
+          .select("patient_id, balance_amount, due_date")
+          .gt("balance_amount", 0)
+          .eq("status", "partial")
+      ]);
 
-      if (error) throw error;
-      setPatients(data || []);
+      if (patientsRes.error) throw patientsRes.error;
+      setPatients(patientsRes.data || []);
+
+      // Build dues map (aggregate by patient)
+      const duesMap = new Map<string, PatientDue>();
+      paymentsRes.data?.forEach(payment => {
+        const existing = duesMap.get(payment.patient_id);
+        if (existing) {
+          existing.balance_amount += Number(payment.balance_amount);
+          // Keep earliest due date
+          if (payment.due_date && (!existing.due_date || payment.due_date < existing.due_date)) {
+            existing.due_date = payment.due_date;
+          }
+        } else {
+          duesMap.set(payment.patient_id, {
+            patient_id: payment.patient_id,
+            balance_amount: Number(payment.balance_amount),
+            due_date: payment.due_date
+          });
+        }
+      });
+      setPatientDues(duesMap);
     } catch (error) {
       console.error("Error fetching patients:", error);
       toast.error("Failed to load patients");
@@ -355,7 +391,8 @@ const Patients = () => {
                 <TableRow>
                   <TableHead>Patient</TableHead>
                   <TableHead>Contact</TableHead>
-                  <TableHead>Date of Birth</TableHead>
+                  <TableHead>Age</TableHead>
+                  <TableHead>Due Amount</TableHead>
                   <TableHead>Registered</TableHead>
                   <TableHead className="text-right">Actions</TableHead>
                 </TableRow>
@@ -363,81 +400,99 @@ const Patients = () => {
               <TableBody>
                 {filteredPatients.length === 0 ? (
                   <TableRow>
-                    <TableCell colSpan={5} className="text-center py-8">
+                    <TableCell colSpan={6} className="text-center py-8">
                       <p className="text-muted-foreground">No patients found</p>
                     </TableCell>
                   </TableRow>
                 ) : (
-                  filteredPatients.map((patient) => (
-                    <TableRow key={patient.id}>
-                      <TableCell>
-                        <div className="flex items-center gap-3">
-                          <div className="w-10 h-10 rounded-full bg-primary/10 flex items-center justify-center">
-                            <User className="h-5 w-5 text-primary" />
+                  filteredPatients.map((patient) => {
+                    const due = patientDues.get(patient.id);
+                    return (
+                      <TableRow key={patient.id}>
+                        <TableCell>
+                          <div className="flex items-center gap-3">
+                            <div className="w-10 h-10 rounded-full bg-primary/10 flex items-center justify-center">
+                              <User className="h-5 w-5 text-primary" />
+                            </div>
+                            <div>
+                              <button 
+                                onClick={() => {
+                                  setSelectedPatientForRecords(patient);
+                                  setRecordsDialogOpen(true);
+                                }}
+                                className="font-medium hover:text-primary hover:underline text-left"
+                              >
+                                {patient.name}
+                              </button>
+                              {patient.allergies && (
+                                <p className="text-xs text-destructive">
+                                  Allergies: {patient.allergies}
+                                </p>
+                              )}
+                            </div>
                           </div>
-                          <div>
-                            <button 
+                        </TableCell>
+                        <TableCell>
+                          <div className="space-y-1">
+                            <div className="flex items-center gap-2 text-sm">
+                              <Phone className="h-3 w-3 text-muted-foreground" />
+                              {patient.phone}
+                            </div>
+                            {patient.email && (
+                              <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                                <Mail className="h-3 w-3" />
+                                {patient.email}
+                              </div>
+                            )}
+                          </div>
+                        </TableCell>
+                        <TableCell>
+                          {formatAge(patient.date_of_birth) || "-"}
+                        </TableCell>
+                        <TableCell>
+                          {due ? (
+                            <div className="space-y-1">
+                              <Badge variant="outline" className="bg-orange-50 text-orange-700 border-orange-200">
+                                <AlertCircle className="h-3 w-3 mr-1" />
+                                ₹{due.balance_amount.toLocaleString()}
+                              </Badge>
+                              {due.due_date && (
+                                <p className="text-xs text-orange-600">
+                                  Due: {format(new Date(due.due_date), "MMM d, yyyy")}
+                                </p>
+                              )}
+                            </div>
+                          ) : (
+                            <span className="text-muted-foreground">-</span>
+                          )}
+                        </TableCell>
+                        <TableCell>
+                          {format(new Date(patient.created_at), "MMM d, yyyy")}
+                        </TableCell>
+                        <TableCell className="text-right">
+                          <div className="flex items-center justify-end gap-2">
+                            <Button 
+                              variant="ghost" 
+                              size="icon" 
                               onClick={() => {
                                 setSelectedPatientForRecords(patient);
                                 setRecordsDialogOpen(true);
                               }}
-                              className="font-medium hover:text-primary hover:underline text-left"
+                              title="View medical records"
                             >
-                              {patient.name}
-                            </button>
-                            {patient.allergies && (
-                              <p className="text-xs text-destructive">
-                                Allergies: {patient.allergies}
-                              </p>
-                            )}
+                              <FileText className="h-4 w-4" />
+                            </Button>
+                            <Button variant="ghost" size="icon" onClick={() => handleEdit(patient)}>
+                              <Edit className="h-4 w-4" />
+                            </Button>
+                            <Button variant="ghost" size="icon" onClick={() => setDeleteId(patient.id)}>
+                              <Trash2 className="h-4 w-4 text-destructive" />
+                            </Button>
                           </div>
-                        </div>
-                      </TableCell>
-                      <TableCell>
-                        <div className="space-y-1">
-                          <div className="flex items-center gap-2 text-sm">
-                            <Phone className="h-3 w-3 text-muted-foreground" />
-                            {patient.phone}
-                          </div>
-                          {patient.email && (
-                            <div className="flex items-center gap-2 text-sm text-muted-foreground">
-                              <Mail className="h-3 w-3" />
-                              {patient.email}
-                            </div>
-                          )}
-                        </div>
-                      </TableCell>
-                      <TableCell>
-                        {patient.date_of_birth
-                          ? format(new Date(patient.date_of_birth), "MMM d, yyyy")
-                          : "-"}
-                      </TableCell>
-                      <TableCell>
-                        {format(new Date(patient.created_at), "MMM d, yyyy")}
-                      </TableCell>
-                      <TableCell className="text-right">
-                        <div className="flex items-center justify-end gap-2">
-                          <Button 
-                            variant="ghost" 
-                            size="icon" 
-                            onClick={() => {
-                              setSelectedPatientForRecords(patient);
-                              setRecordsDialogOpen(true);
-                            }}
-                            title="View medical records"
-                          >
-                            <FileText className="h-4 w-4" />
-                          </Button>
-                          <Button variant="ghost" size="icon" onClick={() => handleEdit(patient)}>
-                            <Edit className="h-4 w-4" />
-                          </Button>
-                          <Button variant="ghost" size="icon" onClick={() => setDeleteId(patient.id)}>
-                            <Trash2 className="h-4 w-4 text-destructive" />
-                          </Button>
-                        </div>
-                      </TableCell>
-                    </TableRow>
-                  ))
+                        </TableCell>
+                      </TableRow>
+                    );
+                  })
                 )}
               </TableBody>
             </Table>
@@ -451,51 +506,72 @@ const Patients = () => {
               <p className="text-muted-foreground">No patients found</p>
             </Card>
           ) : (
-            filteredPatients.map((patient) => (
-              <Card key={patient.id} className="p-4">
-                <div className="flex items-start justify-between gap-3">
-                  <div className="flex items-start gap-3 flex-1 min-w-0">
-                    <div className="w-10 h-10 rounded-full bg-primary/10 flex items-center justify-center flex-shrink-0">
-                      <User className="h-5 w-5 text-primary" />
-                    </div>
-                    <div className="min-w-0">
-                      <button 
-                        onClick={() => {
-                          setSelectedPatientForRecords(patient);
-                          setRecordsDialogOpen(true);
-                        }}
-                        className="font-medium truncate hover:text-primary hover:underline text-left"
-                      >
-                        {patient.name}
-                      </button>
-                      <div className="flex items-center gap-2 text-sm text-muted-foreground mt-1">
-                        <Phone className="h-3 w-3" />
-                        <span>{patient.phone}</span>
+            filteredPatients.map((patient) => {
+              const due = patientDues.get(patient.id);
+              return (
+                <Card key={patient.id} className="p-4">
+                  <div className="flex items-start justify-between gap-3">
+                    <div className="flex items-start gap-3 flex-1 min-w-0">
+                      <div className="w-10 h-10 rounded-full bg-primary/10 flex items-center justify-center flex-shrink-0">
+                        <User className="h-5 w-5 text-primary" />
                       </div>
-                      {patient.email && (
-                        <div className="flex items-center gap-2 text-sm text-muted-foreground">
-                          <Mail className="h-3 w-3" />
-                          <span className="truncate">{patient.email}</span>
+                      <div className="min-w-0">
+                        <button 
+                          onClick={() => {
+                            setSelectedPatientForRecords(patient);
+                            setRecordsDialogOpen(true);
+                          }}
+                          className="font-medium truncate hover:text-primary hover:underline text-left"
+                        >
+                          {patient.name}
+                          {patient.date_of_birth && (
+                            <span className="text-muted-foreground ml-1 text-sm">
+                              ({formatAge(patient.date_of_birth)})
+                            </span>
+                          )}
+                        </button>
+                        <div className="flex items-center gap-2 text-sm text-muted-foreground mt-1">
+                          <Phone className="h-3 w-3" />
+                          <span>{patient.phone}</span>
                         </div>
-                      )}
-                      {patient.allergies && (
-                        <p className="text-xs text-destructive mt-1">
-                          Allergies: {patient.allergies}
-                        </p>
-                      )}
+                        {patient.email && (
+                          <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                            <Mail className="h-3 w-3" />
+                            <span className="truncate">{patient.email}</span>
+                          </div>
+                        )}
+                        {patient.allergies && (
+                          <p className="text-xs text-destructive mt-1">
+                            Allergies: {patient.allergies}
+                          </p>
+                        )}
+                        {due && (
+                          <div className="mt-2">
+                            <Badge variant="outline" className="bg-orange-50 text-orange-700 border-orange-200">
+                              <AlertCircle className="h-3 w-3 mr-1" />
+                              Due: ₹{due.balance_amount.toLocaleString()}
+                            </Badge>
+                            {due.due_date && (
+                              <p className="text-xs text-orange-600 mt-1">
+                                By: {format(new Date(due.due_date), "MMM d, yyyy")}
+                              </p>
+                            )}
+                          </div>
+                        )}
+                      </div>
+                    </div>
+                    <div className="flex items-center gap-1">
+                      <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => handleEdit(patient)}>
+                        <Edit className="h-4 w-4" />
+                      </Button>
+                      <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => setDeleteId(patient.id)}>
+                        <Trash2 className="h-4 w-4 text-destructive" />
+                      </Button>
                     </div>
                   </div>
-                  <div className="flex items-center gap-1">
-                    <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => handleEdit(patient)}>
-                      <Edit className="h-4 w-4" />
-                    </Button>
-                    <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => setDeleteId(patient.id)}>
-                      <Trash2 className="h-4 w-4 text-destructive" />
-                    </Button>
-                  </div>
-                </div>
-              </Card>
-            ))
+                </Card>
+              );
+            })
           )}
         </div>
       </div>

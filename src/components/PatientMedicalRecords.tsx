@@ -6,10 +6,17 @@ import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Separator } from "@/components/ui/separator";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Checkbox } from "@/components/ui/checkbox";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import { Calendar } from "@/components/ui/calendar";
 import { format } from "date-fns";
+import { cn } from "@/lib/utils";
 import { 
   User, 
-  Calendar, 
+  Calendar as CalendarIcon, 
   Pill, 
   Activity, 
   AlertTriangle, 
@@ -17,7 +24,11 @@ import {
   Clock,
   Phone,
   Mail,
-  MapPin
+  MapPin,
+  Plus,
+  X,
+  ChevronLeft,
+  ChevronRight
 } from "lucide-react";
 import { toast } from "sonner";
 
@@ -51,6 +62,7 @@ interface Prescription {
   time_evening: boolean;
   time_sos: boolean;
   created_at: string;
+  prescription_date: string;
 }
 
 interface Procedure {
@@ -75,6 +87,20 @@ export const PatientMedicalRecords = ({ patient, open, onOpenChange }: PatientMe
   const [prescriptions, setPrescriptions] = useState<Prescription[]>([]);
   const [procedures, setProcedures] = useState<Procedure[]>([]);
   const [loading, setLoading] = useState(false);
+  
+  // Date selection for prescriptions
+  const [selectedDate, setSelectedDate] = useState<Date>(new Date());
+  const [showAddPrescription, setShowAddPrescription] = useState(false);
+  
+  // New prescription form
+  const [newPrescription, setNewPrescription] = useState({
+    name: "",
+    dose: "",
+    time_morning: false,
+    time_noon: false,
+    time_evening: false,
+    time_sos: false,
+  });
 
   useEffect(() => {
     if (patient && open) {
@@ -97,33 +123,95 @@ export const PatientMedicalRecords = ({ patient, open, onOpenChange }: PatientMe
       if (appointmentsError) throw appointmentsError;
       setAppointments(appointmentsData || []);
 
-      // If patient has a user_id, fetch their prescriptions and procedures
-      if (patient.user_id) {
-        const [prescRes, procRes] = await Promise.all([
-          supabase
-            .from("patient_prescriptions")
-            .select("*")
-            .eq("user_id", patient.user_id)
-            .order("created_at", { ascending: false }),
-          supabase
-            .from("patient_procedures")
-            .select("*")
-            .eq("user_id", patient.user_id)
-            .order("created_at", { ascending: false }),
-        ]);
+      // Fetch prescriptions by patient_id
+      const { data: prescData, error: prescError } = await supabase
+        .from("patient_prescriptions")
+        .select("*")
+        .eq("patient_id", patient.id)
+        .order("prescription_date", { ascending: false });
 
-        if (prescRes.data) setPrescriptions(prescRes.data);
-        if (procRes.data) setProcedures(procRes.data);
-      } else {
-        setPrescriptions([]);
-        setProcedures([]);
-      }
+      if (prescError) throw prescError;
+      setPrescriptions(prescData || []);
+
+      // Fetch procedures by patient_id
+      const { data: procData, error: procError } = await supabase
+        .from("patient_procedures")
+        .select("*")
+        .eq("patient_id", patient.id)
+        .order("created_at", { ascending: false });
+
+      if (procError) throw procError;
+      setProcedures(procData || []);
     } catch (error) {
       console.error("Error fetching medical records:", error);
       toast.error("Failed to load medical records");
     } finally {
       setLoading(false);
     }
+  };
+
+  const handleAddPrescription = async () => {
+    if (!patient || !newPrescription.name.trim() || !newPrescription.dose.trim()) {
+      toast.error("Please fill in medicine name and dose");
+      return;
+    }
+
+    try {
+      const { error } = await supabase.from("patient_prescriptions").insert({
+        patient_id: patient.id,
+        user_id: patient.user_id,
+        name: newPrescription.name.trim(),
+        dose: newPrescription.dose.trim(),
+        time_morning: newPrescription.time_morning,
+        time_noon: newPrescription.time_noon,
+        time_evening: newPrescription.time_evening,
+        time_sos: newPrescription.time_sos,
+        prescription_date: format(selectedDate, "yyyy-MM-dd"),
+      });
+
+      if (error) throw error;
+
+      toast.success("Prescription added successfully");
+      setNewPrescription({
+        name: "",
+        dose: "",
+        time_morning: false,
+        time_noon: false,
+        time_evening: false,
+        time_sos: false,
+      });
+      setShowAddPrescription(false);
+      fetchMedicalRecords();
+    } catch (error) {
+      console.error("Error adding prescription:", error);
+      toast.error("Failed to add prescription");
+    }
+  };
+
+  const handleDeletePrescription = async (id: string) => {
+    try {
+      const { error } = await supabase.from("patient_prescriptions").delete().eq("id", id);
+      if (error) throw error;
+      toast.success("Prescription deleted");
+      fetchMedicalRecords();
+    } catch (error) {
+      console.error("Error deleting prescription:", error);
+      toast.error("Failed to delete prescription");
+    }
+  };
+
+  // Filter prescriptions by selected date
+  const prescriptionsForDate = prescriptions.filter(
+    (p) => p.prescription_date === format(selectedDate, "yyyy-MM-dd")
+  );
+
+  // Get unique prescription dates for quick navigation
+  const prescriptionDates = [...new Set(prescriptions.map((p) => p.prescription_date))].sort().reverse();
+
+  const navigateDate = (direction: "prev" | "next") => {
+    const newDate = new Date(selectedDate);
+    newDate.setDate(newDate.getDate() + (direction === "next" ? 1 : -1));
+    setSelectedDate(newDate);
   };
 
   const renderTimingBadges = (p: Prescription) => {
@@ -186,7 +274,7 @@ export const PatientMedicalRecords = ({ patient, open, onOpenChange }: PatientMe
                     )}
                     {patient.date_of_birth && (
                       <div className="flex items-center gap-2 text-sm">
-                        <Calendar className="h-4 w-4 text-muted-foreground" />
+                        <CalendarIcon className="h-4 w-4 text-muted-foreground" />
                         <span>{format(new Date(patient.date_of_birth), "MMM d, yyyy")}</span>
                       </div>
                     )}
@@ -224,10 +312,10 @@ export const PatientMedicalRecords = ({ patient, open, onOpenChange }: PatientMe
               </Card>
 
               {/* Tabs for different records */}
-              <Tabs defaultValue="appointments" className="w-full">
+              <Tabs defaultValue="prescriptions" className="w-full">
                 <TabsList className="w-full grid grid-cols-3">
                   <TabsTrigger value="appointments" className="text-xs sm:text-sm">
-                    <Calendar className="h-4 w-4 mr-1 sm:mr-2" />
+                    <CalendarIcon className="h-4 w-4 mr-1 sm:mr-2" />
                     <span className="hidden sm:inline">Appointments</span>
                     <span className="sm:hidden">Appts</span>
                     <Badge variant="secondary" className="ml-1 sm:ml-2 text-xs">{appointments.length}</Badge>
@@ -250,7 +338,7 @@ export const PatientMedicalRecords = ({ patient, open, onOpenChange }: PatientMe
                 <TabsContent value="appointments" className="mt-4">
                   {appointments.length === 0 ? (
                     <Card className="p-8 text-center">
-                      <Calendar className="h-8 w-8 text-muted-foreground mx-auto mb-2" />
+                      <CalendarIcon className="h-8 w-8 text-muted-foreground mx-auto mb-2" />
                       <p className="text-muted-foreground">No appointments found</p>
                     </Card>
                   ) : (
@@ -279,15 +367,133 @@ export const PatientMedicalRecords = ({ patient, open, onOpenChange }: PatientMe
                 </TabsContent>
 
                 {/* Prescriptions Tab */}
-                <TabsContent value="prescriptions" className="mt-4">
-                  {prescriptions.length === 0 ? (
+                <TabsContent value="prescriptions" className="mt-4 space-y-4">
+                  {/* Date Selector */}
+                  <div className="flex items-center justify-between gap-2 flex-wrap">
+                    <div className="flex items-center gap-2">
+                      <Button variant="outline" size="icon" onClick={() => navigateDate("prev")}>
+                        <ChevronLeft className="h-4 w-4" />
+                      </Button>
+                      <Popover>
+                        <PopoverTrigger asChild>
+                          <Button variant="outline" className="min-w-[180px]">
+                            <CalendarIcon className="h-4 w-4 mr-2" />
+                            {format(selectedDate, "MMM d, yyyy")}
+                          </Button>
+                        </PopoverTrigger>
+                        <PopoverContent className="w-auto p-0" align="start">
+                          <Calendar
+                            mode="single"
+                            selected={selectedDate}
+                            onSelect={(date) => date && setSelectedDate(date)}
+                            initialFocus
+                            className={cn("p-3 pointer-events-auto")}
+                          />
+                        </PopoverContent>
+                      </Popover>
+                      <Button variant="outline" size="icon" onClick={() => navigateDate("next")}>
+                        <ChevronRight className="h-4 w-4" />
+                      </Button>
+                    </div>
+                    <Button size="sm" onClick={() => setShowAddPrescription(true)}>
+                      <Plus className="h-4 w-4 mr-1" />
+                      Add Prescription
+                    </Button>
+                  </div>
+
+                  {/* Quick date navigation for dates with prescriptions */}
+                  {prescriptionDates.length > 0 && (
+                    <div className="flex flex-wrap gap-1">
+                      <span className="text-xs text-muted-foreground mr-2">Dates with prescriptions:</span>
+                      {prescriptionDates.slice(0, 5).map((dateStr) => (
+                        <Button
+                          key={dateStr}
+                          variant={format(selectedDate, "yyyy-MM-dd") === dateStr ? "default" : "outline"}
+                          size="sm"
+                          className="text-xs h-7"
+                          onClick={() => setSelectedDate(new Date(dateStr))}
+                        >
+                          {format(new Date(dateStr), "MMM d")}
+                        </Button>
+                      ))}
+                    </div>
+                  )}
+
+                  {/* Add Prescription Form */}
+                  {showAddPrescription && (
+                    <Card className="p-4 border-primary/50 bg-primary/5">
+                      <div className="flex items-center justify-between mb-3">
+                        <h4 className="font-medium text-sm">Add Prescription for {format(selectedDate, "MMM d, yyyy")}</h4>
+                        <Button variant="ghost" size="icon" onClick={() => setShowAddPrescription(false)}>
+                          <X className="h-4 w-4" />
+                        </Button>
+                      </div>
+                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                        <div className="space-y-2">
+                          <Label className="text-xs">Medicine Name *</Label>
+                          <Input
+                            placeholder="e.g., Amoxicillin"
+                            value={newPrescription.name}
+                            onChange={(e) => setNewPrescription({ ...newPrescription, name: e.target.value })}
+                          />
+                        </div>
+                        <div className="space-y-2">
+                          <Label className="text-xs">Dose *</Label>
+                          <Input
+                            placeholder="e.g., 500mg"
+                            value={newPrescription.dose}
+                            onChange={(e) => setNewPrescription({ ...newPrescription, dose: e.target.value })}
+                          />
+                        </div>
+                      </div>
+                      <div className="mt-3">
+                        <Label className="text-xs mb-2 block">Timing</Label>
+                        <div className="flex flex-wrap gap-4">
+                          <label className="flex items-center gap-2 text-sm">
+                            <Checkbox
+                              checked={newPrescription.time_morning}
+                              onCheckedChange={(checked) => setNewPrescription({ ...newPrescription, time_morning: !!checked })}
+                            />
+                            Morning
+                          </label>
+                          <label className="flex items-center gap-2 text-sm">
+                            <Checkbox
+                              checked={newPrescription.time_noon}
+                              onCheckedChange={(checked) => setNewPrescription({ ...newPrescription, time_noon: !!checked })}
+                            />
+                            Noon
+                          </label>
+                          <label className="flex items-center gap-2 text-sm">
+                            <Checkbox
+                              checked={newPrescription.time_evening}
+                              onCheckedChange={(checked) => setNewPrescription({ ...newPrescription, time_evening: !!checked })}
+                            />
+                            Evening
+                          </label>
+                          <label className="flex items-center gap-2 text-sm">
+                            <Checkbox
+                              checked={newPrescription.time_sos}
+                              onCheckedChange={(checked) => setNewPrescription({ ...newPrescription, time_sos: !!checked })}
+                            />
+                            SOS
+                          </label>
+                        </div>
+                      </div>
+                      <Button className="mt-4 w-full" onClick={handleAddPrescription}>
+                        Add Prescription
+                      </Button>
+                    </Card>
+                  )}
+
+                  {/* Prescriptions for selected date */}
+                  {prescriptionsForDate.length === 0 ? (
                     <Card className="p-8 text-center">
                       <Pill className="h-8 w-8 text-muted-foreground mx-auto mb-2" />
-                      <p className="text-muted-foreground">No prescriptions found</p>
+                      <p className="text-muted-foreground">No prescriptions for {format(selectedDate, "MMM d, yyyy")}</p>
                     </Card>
                   ) : (
                     <div className="space-y-2">
-                      {prescriptions.map((pres) => (
+                      {prescriptionsForDate.map((pres) => (
                         <Card key={pres.id} className="p-3">
                           <div className="flex items-start justify-between gap-3">
                             <div className="flex-1">
@@ -297,10 +503,14 @@ export const PatientMedicalRecords = ({ patient, open, onOpenChange }: PatientMe
                               </div>
                               <div className="mt-2">{renderTimingBadges(pres)}</div>
                             </div>
-                            <span className="text-xs text-muted-foreground flex items-center gap-1">
-                              <Clock className="h-3 w-3" />
-                              {format(new Date(pres.created_at), "MMM d, yyyy")}
-                            </span>
+                            <Button
+                              variant="ghost"
+                              size="icon"
+                              className="text-destructive hover:text-destructive"
+                              onClick={() => handleDeletePrescription(pres.id)}
+                            >
+                              <X className="h-4 w-4" />
+                            </Button>
                           </div>
                         </Card>
                       ))}

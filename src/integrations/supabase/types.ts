@@ -227,6 +227,7 @@ export type Database = {
           id: string
           name: string
           patient_id: string | null
+          prescription_date: string
           time_evening: boolean
           time_morning: boolean
           time_noon: boolean
@@ -239,6 +240,7 @@ export type Database = {
           id?: string
           name: string
           patient_id?: string | null
+          prescription_date?: string
           time_evening?: boolean
           time_morning?: boolean
           time_noon?: boolean
@@ -251,6 +253,7 @@ export type Database = {
           id?: string
           name?: string
           patient_id?: string | null
+          prescription_date?: string
           time_evening?: boolean
           time_morning?: boolean
           time_noon?: boolean

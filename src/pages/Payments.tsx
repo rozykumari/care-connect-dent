@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback, useMemo, memo } from "react";
+import { useState, useEffect, useCallback, useMemo, memo, CSSProperties } from "react";
 import { MainLayout } from "@/components/layout/MainLayout";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
@@ -7,7 +7,6 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { format } from "date-fns";
 import { Plus, Search, Trash2 } from "lucide-react";
 import { cn } from "@/lib/utils";
@@ -20,7 +19,7 @@ import { ScrollArea } from "@/components/ui/scroll-area";
 import { Separator } from "@/components/ui/separator";
 import { formatAge } from "@/lib/helpers";
 import { PageSkeleton } from "@/components/ui/skeleton-card";
-
+import { VirtualizedTable, VirtualizedList } from "@/components/ui/virtualized-table";
 interface Payment {
   id: string;
   patient_id: string;
@@ -779,94 +778,110 @@ const Payments = () => {
         </div>
 
         {/* Mobile Card View */}
-        <div className="block sm:hidden space-y-3">
-          {filteredPayments.length === 0 ? (
-            <Card>
-              <CardContent className="py-8 text-center text-muted-foreground">
-                No payments found
-              </CardContent>
-            </Card>
-          ) : (
-            filteredPayments.map((payment) => (
-              <Card key={payment.id}>
-                <CardContent className="p-4">
-                  <div className="flex justify-between items-start mb-2">
-                    <div>
-                      <p className="font-medium">{payment.patient_name}</p>
-                      <p className="text-sm text-muted-foreground">
-                        {format(new Date(payment.date), "MMM d, yyyy")}
+        <div className="block sm:hidden">
+          <VirtualizedList
+            data={filteredPayments}
+            itemHeight={140}
+            height={600}
+            keyExtractor={(p) => p.id}
+            emptyMessage="No payments found"
+            renderItem={(payment, index, style) => (
+              <div style={style} className="p-1">
+                <Card>
+                  <CardContent className="p-4">
+                    <div className="flex justify-between items-start mb-2">
+                      <div>
+                        <p className="font-medium">{payment.patient_name}</p>
+                        <p className="text-sm text-muted-foreground">
+                          {format(new Date(payment.date), "MMM d, yyyy")}
+                        </p>
+                      </div>
+                      <Badge className={cn(statusColors[payment.status])}>{payment.status}</Badge>
+                    </div>
+                    <div className="flex justify-between items-center">
+                      <div>
+                        <span className="text-lg font-semibold">₹{Number(payment.paid_amount || payment.amount).toLocaleString()}</span>
+                        {payment.balance_amount && Number(payment.balance_amount) > 0 && (
+                          <span className="text-sm text-orange-600 ml-2">
+                            (Due: ₹{Number(payment.balance_amount).toLocaleString()})
+                          </span>
+                        )}
+                      </div>
+                      <span className="text-sm text-muted-foreground capitalize">{payment.method}</span>
+                    </div>
+                    {payment.due_date && (
+                      <p className="text-xs text-orange-600 mt-2">
+                        Due by: {format(new Date(payment.due_date), "MMM d, yyyy")}
                       </p>
-                    </div>
-                    <Badge className={cn(statusColors[payment.status])}>{payment.status}</Badge>
-                  </div>
-                  <div className="flex justify-between items-center">
-                    <div>
-                      <span className="text-lg font-semibold">₹{Number(payment.paid_amount || payment.amount).toLocaleString()}</span>
-                      {payment.balance_amount && Number(payment.balance_amount) > 0 && (
-                        <span className="text-sm text-orange-600 ml-2">
-                          (Due: ₹{Number(payment.balance_amount).toLocaleString()})
-                        </span>
-                      )}
-                    </div>
-                    <span className="text-sm text-muted-foreground capitalize">{payment.method}</span>
-                  </div>
-                  {payment.due_date && (
-                    <p className="text-xs text-orange-600 mt-2">
-                      Due by: {format(new Date(payment.due_date), "MMM d, yyyy")}
-                    </p>
-                  )}
-                  {payment.description && (
-                    <p className="text-xs text-muted-foreground mt-2 truncate">{payment.description}</p>
-                  )}
-                </CardContent>
-              </Card>
-            ))
-          )}
+                    )}
+                    {payment.description && (
+                      <p className="text-xs text-muted-foreground mt-2 truncate">{payment.description}</p>
+                    )}
+                  </CardContent>
+                </Card>
+              </div>
+            )}
+          />
         </div>
 
         {/* Desktop Table View */}
         <Card className="hidden sm:block">
           <CardContent className="p-0">
-            <Table>
-              <TableHeader>
-                <TableRow>
-                  <TableHead>Patient</TableHead>
-                  <TableHead>Paid</TableHead>
-                  <TableHead>Balance</TableHead>
-                  <TableHead>Due Date</TableHead>
-                  <TableHead>Method</TableHead>
-                  <TableHead>Date</TableHead>
-                  <TableHead>Status</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {filteredPayments.length === 0 ? (
-                  <TableRow>
-                    <TableCell colSpan={7} className="text-center py-8 text-muted-foreground">
-                      No payments found
-                    </TableCell>
-                  </TableRow>
-                ) : (
-                  filteredPayments.map((payment) => (
-                    <TableRow key={payment.id}>
-                      <TableCell className="font-medium">{payment.patient_name}</TableCell>
-                      <TableCell>₹{Number(payment.paid_amount || payment.amount).toLocaleString()}</TableCell>
-                      <TableCell className={cn(Number(payment.balance_amount) > 0 && "text-orange-600 font-medium")}>
-                        {Number(payment.balance_amount) > 0 ? `₹${Number(payment.balance_amount).toLocaleString()}` : '-'}
-                      </TableCell>
-                      <TableCell className={cn(payment.due_date && "text-orange-600")}>
-                        {payment.due_date ? format(new Date(payment.due_date), "MMM d, yyyy") : '-'}
-                      </TableCell>
-                      <TableCell className="capitalize">{payment.method}</TableCell>
-                      <TableCell>{format(new Date(payment.date), "MMM d, yyyy")}</TableCell>
-                      <TableCell>
-                        <Badge className={cn(statusColors[payment.status])}>{payment.status}</Badge>
-                      </TableCell>
-                    </TableRow>
-                  ))
-                )}
-              </TableBody>
-            </Table>
+            <VirtualizedTable
+              data={filteredPayments}
+              rowHeight={56}
+              height={500}
+              keyExtractor={(p) => p.id}
+              emptyMessage="No payments found"
+              columns={[
+                {
+                  key: "patient",
+                  header: "Patient",
+                  render: (p) => <span className="font-medium">{p.patient_name}</span>,
+                },
+                {
+                  key: "paid",
+                  header: "Paid",
+                  render: (p) => `₹${Number(p.paid_amount || p.amount).toLocaleString()}`,
+                },
+                {
+                  key: "balance",
+                  header: "Balance",
+                  className: cn(Number(filteredPayments[0]?.balance_amount) > 0 && "text-orange-600"),
+                  render: (p) => (
+                    <span className={cn(Number(p.balance_amount) > 0 && "text-orange-600 font-medium")}>
+                      {Number(p.balance_amount) > 0 ? `₹${Number(p.balance_amount).toLocaleString()}` : '-'}
+                    </span>
+                  ),
+                },
+                {
+                  key: "dueDate",
+                  header: "Due Date",
+                  render: (p) => (
+                    <span className={cn(p.due_date && "text-orange-600")}>
+                      {p.due_date ? format(new Date(p.due_date), "MMM d, yyyy") : '-'}
+                    </span>
+                  ),
+                },
+                {
+                  key: "method",
+                  header: "Method",
+                  render: (p) => <span className="capitalize">{p.method}</span>,
+                },
+                {
+                  key: "date",
+                  header: "Date",
+                  render: (p) => format(new Date(p.date), "MMM d, yyyy"),
+                },
+                {
+                  key: "status",
+                  header: "Status",
+                  render: (p) => (
+                    <Badge className={cn(statusColors[p.status])}>{p.status}</Badge>
+                  ),
+                },
+              ]}
+            />
           </CardContent>
         </Card>
       </div>

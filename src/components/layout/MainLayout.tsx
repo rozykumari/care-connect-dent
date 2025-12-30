@@ -7,6 +7,7 @@ import { useAuth } from "@/hooks/useAuth";
 import { Button } from "@/components/ui/button";
 import { LogOut, User, Menu } from "lucide-react";
 import { Link } from "react-router-dom";
+import { ThemeToggle } from "@/components/ThemeToggle";
 
 interface MainLayoutProps {
   children: React.ReactNode;
@@ -36,6 +37,7 @@ export const MainLayout = memo(function MainLayout({
               <span className="hidden sm:inline text-muted-foreground text-xs ml-2 uppercase tracking-widest">Precision Medicine</span>
             </div>
             <div className="flex items-center gap-1">
+              <ThemeToggle />
               {isPatient && (
                 <Link to="/profile">
                   <Button variant="ghost" size="icon" className="h-8 w-8 text-muted-foreground hover:text-foreground hover:bg-primary/10 transition-colors">

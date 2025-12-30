@@ -214,7 +214,52 @@ const DoctorInventory = () => {
   const categories = [...new Set(inventory.map((item) => item.category))];
 
   const handlePrint = () => {
-    window.print();
+    const printContent = `
+      <!DOCTYPE html>
+      <html>
+      <head>
+        <title>Inventory Report</title>
+        <style>
+          body { font-family: Arial, sans-serif; padding: 20px; }
+          h1 { text-align: center; margin-bottom: 20px; }
+          table { width: 100%; border-collapse: collapse; }
+          th, td { border: 1px solid #ddd; padding: 10px; text-align: left; }
+          th { background-color: #f4f4f4; font-weight: bold; }
+          tr:nth-child(even) { background-color: #f9f9f9; }
+          .print-date { text-align: right; margin-bottom: 10px; color: #666; font-size: 12px; }
+        </style>
+      </head>
+      <body>
+        <div class="print-date">Printed on: ${new Date().toLocaleDateString()}</div>
+        <h1>Inventory Report</h1>
+        <table>
+          <thead>
+            <tr>
+              <th>Name</th>
+              <th>Available Stock</th>
+              <th>Price</th>
+            </tr>
+          </thead>
+          <tbody>
+            ${filteredInventory.map(item => `
+              <tr>
+                <td>${item.name}</td>
+                <td>${item.stock} ${item.unit || 'units'}</td>
+                <td>₹${item.price.toFixed(2)}</td>
+              </tr>
+            `).join('')}
+          </tbody>
+        </table>
+      </body>
+      </html>
+    `;
+    
+    const printWindow = window.open('', '_blank');
+    if (printWindow) {
+      printWindow.document.write(printContent);
+      printWindow.document.close();
+      printWindow.print();
+    }
   };
 
   const getCategoryIcon = (category: string) => {

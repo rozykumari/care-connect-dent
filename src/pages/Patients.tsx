@@ -13,7 +13,7 @@ import {
   DialogTrigger,
 } from "@/components/ui/dialog";
 import { format } from "date-fns";
-import { Plus, Search, User, Phone, Mail, Edit, Trash2, FileText, AlertCircle } from "lucide-react";
+import { Plus, Search, User, Phone, Mail, Edit, Trash2, FileText, AlertCircle, Pill } from "lucide-react";
 import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
 import {
@@ -30,6 +30,7 @@ import { toast } from "sonner";
 import { formatAge } from "@/lib/helpers";
 import { PageSkeleton } from "@/components/ui/skeleton-card";
 import { PatientMedicalRecords } from "@/components/PatientMedicalRecords";
+import { PatientPrescriptionManager } from "@/components/PatientPrescriptionManager";
 import { VirtualizedTable, VirtualizedList } from "@/components/ui/virtualized-table";
 interface Patient {
   id: string;
@@ -60,6 +61,7 @@ const Patients = () => {
   const [deleteId, setDeleteId] = useState<string | null>(null);
   const [selectedPatientForRecords, setSelectedPatientForRecords] = useState<Patient | null>(null);
   const [recordsDialogOpen, setRecordsDialogOpen] = useState(false);
+  const [selectedPatientForPrescription, setSelectedPatientForPrescription] = useState<Patient | null>(null);
 
   const [formData, setFormData] = useState({
     name: "",
@@ -471,6 +473,14 @@ const Patients = () => {
                       <Button 
                         variant="ghost" 
                         size="icon" 
+                        onClick={() => setSelectedPatientForPrescription(patient)}
+                        title="Manage prescriptions"
+                      >
+                        <Pill className="h-4 w-4 text-primary" />
+                      </Button>
+                      <Button 
+                        variant="ghost" 
+                        size="icon" 
                         onClick={() => {
                           setSelectedPatientForRecords(patient);
                           setRecordsDialogOpen(true);
@@ -557,6 +567,9 @@ const Patients = () => {
                         </div>
                       </div>
                       <div className="flex items-center gap-1">
+                        <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => setSelectedPatientForPrescription(patient)} title="Prescriptions">
+                          <Pill className="h-4 w-4 text-primary" />
+                        </Button>
                         <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => handleEdit(patient)}>
                           <Edit className="h-4 w-4" />
                         </Button>
@@ -571,6 +584,14 @@ const Patients = () => {
             }}
           />
         </div>
+
+        {/* Prescription Manager - shown when a patient is selected */}
+        {selectedPatientForPrescription && (
+          <PatientPrescriptionManager
+            patient={selectedPatientForPrescription}
+            onClose={() => setSelectedPatientForPrescription(null)}
+          />
+        )}
       </div>
 
       <AlertDialog open={!!deleteId} onOpenChange={() => setDeleteId(null)}>

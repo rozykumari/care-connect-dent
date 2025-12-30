@@ -18,11 +18,15 @@ import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover
 import { Checkbox } from "@/components/ui/checkbox";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Separator } from "@/components/ui/separator";
+import { formatAge } from "@/lib/helpers";
 
 interface Payment {
   id: string;
   patient_id: string;
   amount: number;
+  paid_amount: number | null;
+  balance_amount: number | null;
+  due_date: string | null;
   method: string;
   status: string;
   date: string;
@@ -35,6 +39,7 @@ interface Patient {
   name: string;
   phone: string;
   user_id: string | null;
+  date_of_birth: string | null;
 }
 
 interface PrescribedItem {
@@ -59,8 +64,11 @@ interface InventoryItem {
 const statusColors: Record<string, string> = {
   pending: "bg-warning/20 text-warning",
   completed: "bg-green-100 text-green-800",
+  partial: "bg-orange-100 text-orange-800",
   refunded: "bg-destructive/20 text-destructive",
 };
+
+const CONSULTING_FEE = 200;
 
 const Payments = () => {
   const [payments, setPayments] = useState<Payment[]>([]);
@@ -76,6 +84,8 @@ const Payments = () => {
   const [newCustomItem, setNewCustomItem] = useState({ name: '', price: 0 });
   const [inventorySearchOpen, setInventorySearchOpen] = useState(false);
   const [inventorySearch, setInventorySearch] = useState("");
+  const [paidAmount, setPaidAmount] = useState<number>(0);
+  const [dueDate, setDueDate] = useState<string>("");
 
   const [formData, setFormData] = useState({
     patientId: "",
@@ -95,7 +105,7 @@ const Payments = () => {
       // Fetch patients first
       const { data: patientsData } = await supabase
         .from("patients")
-        .select("id, name, phone, user_id")
+        .select("id, name, phone, user_id, date_of_birth")
         .order("name");
 
       if (patientsData) setPatients(patientsData);
@@ -147,6 +157,15 @@ const Payments = () => {
 
       const items: PrescribedItem[] = [];
 
+      // Add default consulting fee (selected by default)
+      items.push({
+        id: 'consulting-fee',
+        name: 'Consulting Fee',
+        type: 'procedure',
+        price: CONSULTING_FEE,
+        selected: true,
+      });
+
       // Add prescriptions (medicines)
       if (prescRes.data) {
         prescRes.data.forEach(med => {
@@ -166,7 +185,7 @@ const Payments = () => {
             name: med.name,
             type: 'medicine',
             price: inventoryMatch ? Number(inventoryMatch.price) : 0,
-            selected: true,
+            selected: false,
             details: `${med.dose} (${timing})`,
             quantity: 1,
             inventoryId: inventoryMatch?.id
@@ -188,7 +207,7 @@ const Payments = () => {
             name: proc.name,
             type: inventoryMatch?.category === 'examination' ? 'examination' : 'procedure',
             price: inventoryMatch ? Number(inventoryMatch.price) : 0,
-            selected: true,
+            selected: false,
             details: proc.status,
             inventoryId: inventoryMatch?.id
           });
@@ -196,9 +215,20 @@ const Payments = () => {
       }
 
       setPrescribedItems(items);
+      // Set initial paid amount to total
+      const total = items.filter(i => i.selected).reduce((sum, item) => sum + (item.price * (item.quantity || 1)), 0);
+      setPaidAmount(total);
     } catch (error) {
       console.error("Error fetching prescribed items:", error);
-      setPrescribedItems([]);
+      // Even on error, add consulting fee
+      setPrescribedItems([{
+        id: 'consulting-fee',
+        name: 'Consulting Fee',
+        type: 'procedure',
+        price: CONSULTING_FEE,
+        selected: true,
+      }]);
+      setPaidAmount(CONSULTING_FEE);
     }
   };
 
@@ -212,6 +242,8 @@ const Payments = () => {
     setPatientSearchOpen(false);
     setPatientSearch("");
     setCustomItems([]);
+    setPaidAmount(0);
+    setDueDate("");
     await fetchPatientPrescribedItems(patient.id, patient.user_id);
   };
 
@@ -224,11 +256,15 @@ const Payments = () => {
   };
 
   const toggleItemSelection = (id: string) => {
-    setPrescribedItems(items => 
-      items.map(item => 
+    setPrescribedItems(items => {
+      const updated = items.map(item => 
         item.id === id ? { ...item, selected: !item.selected } : item
-      )
-    );
+      );
+      // Update paid amount when selection changes
+      const total = calculateTotalFromItems(updated, customItems);
+      setPaidAmount(total);
+      return updated;
+    });
   };
 
   const updateItemPrice = (id: string, price: number) => {
@@ -242,18 +278,26 @@ const Payments = () => {
   const addCustomItem = () => {
     if (!newCustomItem.name.trim()) return;
     
-    setCustomItems([...customItems, {
+    const newItem = {
       id: `custom-${Date.now()}`,
       name: newCustomItem.name,
-      type: 'procedure',
+      type: 'procedure' as const,
       price: newCustomItem.price,
       selected: true
-    }]);
+    };
+    const updated = [...customItems, newItem];
+    setCustomItems(updated);
     setNewCustomItem({ name: '', price: 0 });
+    // Update paid amount
+    setPaidAmount(prev => prev + newCustomItem.price);
   };
 
   const removeCustomItem = (id: string) => {
+    const item = customItems.find(i => i.id === id);
     setCustomItems(items => items.filter(item => item.id !== id));
+    if (item) {
+      setPaidAmount(prev => Math.max(0, prev - (item.price * (item.quantity || 1))));
+    }
   };
 
   const addFromInventory = (item: InventoryItem) => {
@@ -266,7 +310,7 @@ const Payments = () => {
       return;
     }
 
-    setCustomItems([...customItems, {
+    const newItem = {
       id: `inv-${item.id}-${Date.now()}`,
       name: item.name,
       type: item.category as 'medicine' | 'procedure' | 'examination',
@@ -274,9 +318,13 @@ const Payments = () => {
       selected: true,
       quantity: item.category === 'medicine' ? 1 : undefined,
       inventoryId: item.id
-    }]);
+    };
+    
+    setCustomItems([...customItems, newItem]);
     setInventorySearchOpen(false);
     setInventorySearch("");
+    // Update paid amount
+    setPaidAmount(prev => prev + Number(item.price));
   };
 
   const filteredInventoryForSearch = inventoryItems.filter(item =>
@@ -284,12 +332,21 @@ const Payments = () => {
     item.category.toLowerCase().includes(inventorySearch.toLowerCase())
   );
 
-  const calculateTotal = () => {
-    const prescribedTotal = prescribedItems
+  const calculateTotalFromItems = (prescribed: PrescribedItem[], custom: PrescribedItem[]) => {
+    const prescribedTotal = prescribed
       .filter(item => item.selected)
       .reduce((sum, item) => sum + (item.price * (item.quantity || 1)), 0);
-    const customTotal = customItems.reduce((sum, item) => sum + (item.price * (item.quantity || 1)), 0);
+    const customTotal = custom.reduce((sum, item) => sum + (item.price * (item.quantity || 1)), 0);
     return prescribedTotal + customTotal;
+  };
+
+  const calculateTotal = () => {
+    return calculateTotalFromItems(prescribedItems, customItems);
+  };
+
+  const calculateBalance = () => {
+    const total = calculateTotal();
+    return Math.max(0, total - paidAmount);
   };
 
   const handleSubmit = async () => {
@@ -304,6 +361,17 @@ const Payments = () => {
       return;
     }
 
+    if (paidAmount <= 0) {
+      toast.error("Please enter paid amount");
+      return;
+    }
+
+    const balance = calculateBalance();
+    if (balance > 0 && !dueDate) {
+      toast.error("Please set due date for partial payment");
+      return;
+    }
+
     // Build description from selected items
     const selectedPrescribed = prescribedItems.filter(i => i.selected);
     const allItems = [...selectedPrescribed, ...customItems];
@@ -312,13 +380,18 @@ const Payments = () => {
       return qty > 1 ? `${i.name} x${qty}: ₹${i.price * qty}` : `${i.name}: ₹${i.price}`;
     }).join(', ');
 
+    const paymentStatus = balance > 0 ? "partial" : "completed";
+
     try {
       // Insert payment
       const { error } = await supabase.from("payments").insert({
         patient_id: formData.patientId,
         amount: totalAmount,
+        paid_amount: paidAmount,
+        balance_amount: balance,
+        due_date: balance > 0 ? dueDate : null,
         method: formData.method,
-        status: "completed",
+        status: paymentStatus,
         description: description || null,
       });
 
@@ -341,11 +414,13 @@ const Payments = () => {
         }
       }
 
-      toast.success("Payment recorded and inventory updated");
+      toast.success(balance > 0 ? "Partial payment recorded" : "Payment recorded and inventory updated");
       setIsDialogOpen(false);
       setFormData({ patientId: "", patientName: "", patientUserId: null, method: "cash", description: "" });
       setPrescribedItems([]);
       setCustomItems([]);
+      setPaidAmount(0);
+      setDueDate("");
       fetchData();
     } catch (error) {
       console.error("Error recording payment:", error);
@@ -363,8 +438,12 @@ const Payments = () => {
   );
 
   const totalRevenue = payments
-    .filter((p) => p.status === "completed")
-    .reduce((sum, p) => sum + Number(p.amount), 0);
+    .filter((p) => p.status === "completed" || p.status === "partial")
+    .reduce((sum, p) => sum + Number(p.paid_amount || p.amount), 0);
+
+  const totalDue = payments
+    .filter((p) => p.status === "partial")
+    .reduce((sum, p) => sum + Number(p.balance_amount || 0), 0);
 
   if (loading) {
     return (
@@ -383,7 +462,12 @@ const Payments = () => {
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
           <div>
             <h1 className="text-2xl sm:text-3xl font-bold text-foreground">Payments</h1>
-            <p className="text-muted-foreground mt-1">Total Revenue: ₹{totalRevenue.toLocaleString()}</p>
+            <div className="flex flex-wrap gap-4 mt-1">
+              <p className="text-muted-foreground">Total Revenue: ₹{totalRevenue.toLocaleString()}</p>
+              {totalDue > 0 && (
+                <p className="text-orange-600 font-medium">Total Due: ₹{totalDue.toLocaleString()}</p>
+              )}
+            </div>
           </div>
           <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-3">
             <div className="relative">
@@ -433,7 +517,14 @@ const Payments = () => {
                                   onSelect={() => handlePatientSelect(p)}
                                 >
                                   <div>
-                                    <p className="font-medium">{p.name}</p>
+                                    <p className="font-medium">
+                                      {p.name}
+                                      {p.date_of_birth && (
+                                        <span className="text-muted-foreground ml-2 text-sm">
+                                          ({formatAge(p.date_of_birth)})
+                                        </span>
+                                      )}
+                                    </p>
                                     <p className="text-sm text-muted-foreground">{p.phone}</p>
                                   </div>
                                 </CommandItem>
@@ -614,36 +705,74 @@ const Payments = () => {
                     </>
                   )}
 
-                  {/* Total and Method */}
-                  <div className="grid grid-cols-2 gap-4">
-                    <div className="space-y-2">
-                      <Label>Total Amount</Label>
-                      <div className="text-2xl font-bold text-primary">
-                        ₹{calculateTotal().toLocaleString()}
+                  {/* Total, Paid Amount, Balance, and Method */}
+                  <div className="space-y-4">
+                    <div className="grid grid-cols-2 gap-4">
+                      <div className="space-y-2">
+                        <Label>Total Amount</Label>
+                        <div className="text-2xl font-bold text-primary">
+                          ₹{calculateTotal().toLocaleString()}
+                        </div>
+                      </div>
+                      <div className="space-y-2">
+                        <Label>Method</Label>
+                        <Select value={formData.method} onValueChange={(v) => setFormData({ ...formData, method: v })}>
+                          <SelectTrigger>
+                            <SelectValue />
+                          </SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value="cash">Cash</SelectItem>
+                            <SelectItem value="card">Card</SelectItem>
+                            <SelectItem value="upi">UPI</SelectItem>
+                            <SelectItem value="insurance">Insurance</SelectItem>
+                          </SelectContent>
+                        </Select>
                       </div>
                     </div>
-                    <div className="space-y-2">
-                      <Label>Method</Label>
-                      <Select value={formData.method} onValueChange={(v) => setFormData({ ...formData, method: v })}>
-                        <SelectTrigger>
-                          <SelectValue />
-                        </SelectTrigger>
-                        <SelectContent>
-                          <SelectItem value="cash">Cash</SelectItem>
-                          <SelectItem value="card">Card</SelectItem>
-                          <SelectItem value="upi">UPI</SelectItem>
-                          <SelectItem value="insurance">Insurance</SelectItem>
-                        </SelectContent>
-                      </Select>
+
+                    <div className="grid grid-cols-2 gap-4">
+                      <div className="space-y-2">
+                        <Label>Paid Amount</Label>
+                        <Input
+                          type="number"
+                          value={paidAmount || ''}
+                          onChange={(e) => setPaidAmount(parseFloat(e.target.value) || 0)}
+                          placeholder="Enter paid amount"
+                        />
+                      </div>
+                      <div className="space-y-2">
+                        <Label>Balance</Label>
+                        <div className={cn(
+                          "text-xl font-bold p-2 rounded-md",
+                          calculateBalance() > 0 ? "text-orange-600 bg-orange-50" : "text-green-600 bg-green-50"
+                        )}>
+                          ₹{calculateBalance().toLocaleString()}
+                        </div>
+                      </div>
                     </div>
+
+                    {calculateBalance() > 0 && (
+                      <div className="space-y-2">
+                        <Label>Due Date *</Label>
+                        <Input
+                          type="date"
+                          value={dueDate}
+                          onChange={(e) => setDueDate(e.target.value)}
+                          min={format(new Date(), "yyyy-MM-dd")}
+                        />
+                      </div>
+                    )}
                   </div>
 
                   <Button
                     onClick={handleSubmit}
                     className="w-full"
-                    disabled={!formData.patientId || calculateTotal() <= 0}
+                    disabled={!formData.patientId || calculateTotal() <= 0 || paidAmount <= 0}
                   >
-                    Record Payment - ₹{calculateTotal().toLocaleString()}
+                    {calculateBalance() > 0 
+                      ? `Record Partial Payment - ₹${paidAmount.toLocaleString()}`
+                      : `Record Payment - ₹${calculateTotal().toLocaleString()}`
+                    }
                   </Button>
                 </div>
               </DialogContent>
@@ -673,9 +802,21 @@ const Payments = () => {
                     <Badge className={cn(statusColors[payment.status])}>{payment.status}</Badge>
                   </div>
                   <div className="flex justify-between items-center">
-                    <span className="text-lg font-semibold">₹{Number(payment.amount).toLocaleString()}</span>
+                    <div>
+                      <span className="text-lg font-semibold">₹{Number(payment.paid_amount || payment.amount).toLocaleString()}</span>
+                      {payment.balance_amount && Number(payment.balance_amount) > 0 && (
+                        <span className="text-sm text-orange-600 ml-2">
+                          (Due: ₹{Number(payment.balance_amount).toLocaleString()})
+                        </span>
+                      )}
+                    </div>
                     <span className="text-sm text-muted-foreground capitalize">{payment.method}</span>
                   </div>
+                  {payment.due_date && (
+                    <p className="text-xs text-orange-600 mt-2">
+                      Due by: {format(new Date(payment.due_date), "MMM d, yyyy")}
+                    </p>
+                  )}
                   {payment.description && (
                     <p className="text-xs text-muted-foreground mt-2 truncate">{payment.description}</p>
                   )}
@@ -692,17 +833,18 @@ const Payments = () => {
               <TableHeader>
                 <TableRow>
                   <TableHead>Patient</TableHead>
-                  <TableHead>Amount</TableHead>
+                  <TableHead>Paid</TableHead>
+                  <TableHead>Balance</TableHead>
+                  <TableHead>Due Date</TableHead>
                   <TableHead>Method</TableHead>
                   <TableHead>Date</TableHead>
                   <TableHead>Status</TableHead>
-                  <TableHead>Description</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
                 {filteredPayments.length === 0 ? (
                   <TableRow>
-                    <TableCell colSpan={6} className="text-center py-8 text-muted-foreground">
+                    <TableCell colSpan={7} className="text-center py-8 text-muted-foreground">
                       No payments found
                     </TableCell>
                   </TableRow>
@@ -710,14 +852,17 @@ const Payments = () => {
                   filteredPayments.map((payment) => (
                     <TableRow key={payment.id}>
                       <TableCell className="font-medium">{payment.patient_name}</TableCell>
-                      <TableCell>₹{Number(payment.amount).toLocaleString()}</TableCell>
+                      <TableCell>₹{Number(payment.paid_amount || payment.amount).toLocaleString()}</TableCell>
+                      <TableCell className={cn(Number(payment.balance_amount) > 0 && "text-orange-600 font-medium")}>
+                        {Number(payment.balance_amount) > 0 ? `₹${Number(payment.balance_amount).toLocaleString()}` : '-'}
+                      </TableCell>
+                      <TableCell className={cn(payment.due_date && "text-orange-600")}>
+                        {payment.due_date ? format(new Date(payment.due_date), "MMM d, yyyy") : '-'}
+                      </TableCell>
                       <TableCell className="capitalize">{payment.method}</TableCell>
                       <TableCell>{format(new Date(payment.date), "MMM d, yyyy")}</TableCell>
                       <TableCell>
                         <Badge className={cn(statusColors[payment.status])}>{payment.status}</Badge>
-                      </TableCell>
-                      <TableCell className="max-w-[200px] truncate text-muted-foreground text-sm">
-                        {payment.description || '-'}
                       </TableCell>
                     </TableRow>
                   ))

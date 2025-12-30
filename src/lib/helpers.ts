@@ -118,3 +118,29 @@ export function truncate(text: string, length: number): string {
 export function capitalize(text: string): string {
   return text.replace(/\b\w/g, (char) => char.toUpperCase());
 }
+
+/**
+ * Calculate age from date of birth
+ */
+export function calculateAge(dateOfBirth: string | null | undefined): number | null {
+  if (!dateOfBirth) return null;
+  
+  const today = new Date();
+  const birthDate = new Date(dateOfBirth);
+  let age = today.getFullYear() - birthDate.getFullYear();
+  const monthDiff = today.getMonth() - birthDate.getMonth();
+  
+  if (monthDiff < 0 || (monthDiff === 0 && today.getDate() < birthDate.getDate())) {
+    age--;
+  }
+  
+  return age;
+}
+
+/**
+ * Format age display
+ */
+export function formatAge(dateOfBirth: string | null | undefined): string {
+  const age = calculateAge(dateOfBirth);
+  return age !== null ? `${age} yrs` : '';
+}

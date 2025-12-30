@@ -360,33 +360,42 @@ export type Database = {
         Row: {
           amount: number
           appointment_id: string | null
+          balance_amount: number | null
           created_at: string
           date: string
           description: string | null
+          due_date: string | null
           id: string
           method: string
+          paid_amount: number | null
           patient_id: string
           status: string
         }
         Insert: {
           amount: number
           appointment_id?: string | null
+          balance_amount?: number | null
           created_at?: string
           date?: string
           description?: string | null
+          due_date?: string | null
           id?: string
           method?: string
+          paid_amount?: number | null
           patient_id: string
           status?: string
         }
         Update: {
           amount?: number
           appointment_id?: string | null
+          balance_amount?: number | null
           created_at?: string
           date?: string
           description?: string | null
+          due_date?: string | null
           id?: string
           method?: string
+          paid_amount?: number | null
           patient_id?: string
           status?: string
         }

@@ -6,12 +6,15 @@ import { AppointmentChart } from "@/components/dashboard/AppointmentChart";
 import { TodayAppointments } from "@/components/dashboard/TodayAppointments";
 import { RecentPatients } from "@/components/dashboard/RecentPatients";
 import { supabase } from "@/integrations/supabase/client";
-import { Calendar, Users, CreditCard, ClipboardList } from "lucide-react";
+import { Calendar, CreditCard, ClipboardList, CalendarIcon } from "lucide-react";
 import { format } from "date-fns";
+import { Button } from "@/components/ui/button";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import { Calendar as CalendarComponent } from "@/components/ui/calendar";
+import { cn } from "@/lib/utils";
 
 interface DashboardStats {
   todayAppointments: number;
-  totalPatients: number;
   totalRevenue: number;
   totalProcedures: number;
 }
@@ -19,43 +22,42 @@ interface DashboardStats {
 const Dashboard = () => {
   const [stats, setStats] = useState<DashboardStats>({
     todayAppointments: 0,
-    totalPatients: 0,
     totalRevenue: 0,
     totalProcedures: 0,
   });
   const [loading, setLoading] = useState(true);
+  const [selectedDate, setSelectedDate] = useState<Date>(new Date());
 
   useEffect(() => {
     fetchDashboardStats();
-  }, []);
+  }, [selectedDate]);
 
   const fetchDashboardStats = async () => {
     try {
-      const today = format(new Date(), "yyyy-MM-dd");
+      setLoading(true);
+      const dateStr = format(selectedDate, "yyyy-MM-dd");
 
-      // Fetch all stats in parallel
-      const [appointmentsRes, patientsRes, paymentsRes, proceduresRes] = await Promise.all([
+      // Fetch all stats in parallel for the selected date
+      const [appointmentsRes, paymentsRes, proceduresRes] = await Promise.all([
         supabase
           .from("appointments")
           .select("id", { count: "exact" })
-          .eq("date", today),
-        supabase
-          .from("patients")
-          .select("id", { count: "exact" }),
+          .eq("date", dateStr),
         supabase
           .from("payments")
-          .select("amount")
-          .eq("status", "completed"),
+          .select("amount, paid_amount")
+          .eq("status", "completed")
+          .eq("date", dateStr),
         supabase
           .from("patient_procedures")
-          .select("id", { count: "exact" }),
+          .select("id", { count: "exact" })
+          .eq("date", dateStr),
       ]);
 
-      const totalRevenue = paymentsRes.data?.reduce((sum, p) => sum + Number(p.amount), 0) || 0;
+      const totalRevenue = paymentsRes.data?.reduce((sum, p) => sum + Number(p.paid_amount || p.amount), 0) || 0;
 
       setStats({
         todayAppointments: appointmentsRes.count || 0,
-        totalPatients: patientsRes.count || 0,
         totalRevenue,
         totalProcedures: proceduresRes.count || 0,
       });
@@ -65,6 +67,9 @@ const Dashboard = () => {
       setLoading(false);
     }
   };
+
+  const isToday = format(selectedDate, "yyyy-MM-dd") === format(new Date(), "yyyy-MM-dd");
+  const displayDate = isToday ? "Today" : format(selectedDate, "MMM d, yyyy");
 
   if (loading) {
     return (
@@ -82,40 +87,54 @@ const Dashboard = () => {
       <MainLayout>
         <div className="space-y-6 animate-fade-in">
           {/* Header */}
-          <div className="flex items-center justify-between">
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
             <div>
               <h1 className="text-3xl font-bold text-foreground">Dashboard</h1>
               <p className="text-muted-foreground mt-1">
-                Welcome back! Here's what's happening today.
+                {isToday ? "Welcome back! Here's what's happening today." : `Showing data for ${format(selectedDate, "MMMM d, yyyy")}`}
               </p>
             </div>
-            <div className="text-right">
-              <p className="text-sm text-muted-foreground">Today</p>
-              <p className="text-lg font-semibold text-foreground">
-                {format(new Date(), "EEEE, MMMM d, yyyy")}
-              </p>
+            <div className="flex items-center gap-3">
+              <Popover>
+                <PopoverTrigger asChild>
+                  <Button
+                    variant="outline"
+                    className={cn(
+                      "w-[200px] justify-start text-left font-normal",
+                      !selectedDate && "text-muted-foreground"
+                    )}
+                  >
+                    <CalendarIcon className="mr-2 h-4 w-4" />
+                    {format(selectedDate, "EEEE, MMM d, yyyy")}
+                  </Button>
+                </PopoverTrigger>
+                <PopoverContent className="w-auto p-0" align="end">
+                  <CalendarComponent
+                    mode="single"
+                    selected={selectedDate}
+                    onSelect={(date) => date && setSelectedDate(date)}
+                    initialFocus
+                    className="p-3 pointer-events-auto"
+                  />
+                </PopoverContent>
+              </Popover>
             </div>
           </div>
 
           {/* Stats Grid */}
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
             <StatsCard
-              title="Today's Appointments"
+              title={`${displayDate}'s Appointments`}
               value={stats.todayAppointments}
               icon={Calendar}
             />
             <StatsCard
-              title="Total Patients"
-              value={stats.totalPatients}
-              icon={Users}
-            />
-            <StatsCard
-              title="Total Revenue"
+              title={`${displayDate}'s Revenue`}
               value={`₹${stats.totalRevenue.toLocaleString()}`}
               icon={CreditCard}
             />
             <StatsCard
-              title="Procedures"
+              title={`${displayDate}'s Procedures`}
               value={stats.totalProcedures}
               icon={ClipboardList}
             />

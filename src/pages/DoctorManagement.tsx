@@ -468,50 +468,46 @@ const DoctorManagement = () => {
         {/* Print Header - Professional Prescription Layout */}
         <div className="hidden print:block print-prescription-header">
           {/* Top Header with Doctor Info */}
-          <div className="bg-gradient-to-r from-blue-600 to-blue-700 text-white p-6 -mx-4 -mt-4 mb-6">
+          <div className="bg-gradient-to-r from-primary to-primary/80 text-primary-foreground p-6 -mx-4 -mt-4 mb-6">
             <div className="flex items-start justify-between">
               <div>
                 {CLINIC_CONFIG.doctorName && (
                   <h1 className="text-2xl font-bold">{CLINIC_CONFIG.doctorName}</h1>
                 )}
                 {CLINIC_CONFIG.qualification && (
-                  <p className="text-blue-100 text-sm mt-1">{CLINIC_CONFIG.qualification}</p>
+                  <p className="opacity-80 text-sm mt-1">{CLINIC_CONFIG.qualification}</p>
                 )}
                 {CLINIC_CONFIG.registrationNo && (
-                  <p className="text-blue-200 text-xs mt-1">Reg. No: {CLINIC_CONFIG.registrationNo}</p>
+                  <p className="opacity-60 text-xs mt-1">Reg. No: {CLINIC_CONFIG.registrationNo}</p>
                 )}
               </div>
-              {/* Caduceus Symbol */}
-              <div className="text-blue-200">
-                <svg className="w-16 h-16" viewBox="0 0 64 64" fill="currentColor">
-                  <path d="M32 4c-1.1 0-2 .9-2 2v4c-4.4 0-8 3.6-8 8 0 3.3 2 6.1 4.9 7.3C24.3 27.5 22 30.5 22 34c0 3.3 2 6.1 4.9 7.3-2.6 2.2-4.9 5.2-4.9 8.7v8h4v-8c0-2.8 2.2-5 5-5h2c2.8 0 5 2.2 5 5v8h4v-8c0-3.5-2.3-6.5-4.9-8.7 2.9-1.2 4.9-4 4.9-7.3 0-3.5-2.3-6.5-4.9-8.7C39 24.1 42 21.3 42 18c0-4.4-3.6-8-8-8V6c0-1.1-.9-2-2-2zm-2 10h4c2.2 0 4 1.8 4 4s-1.8 4-4 4h-4c-2.2 0-4-1.8-4-4s1.8-4 4-4zm0 12h4c2.2 0 4 1.8 4 4s-1.8 4-4 4h-4c-2.2 0-4-1.8-4-4s1.8-4 4-4z"/>
-                </svg>
+              {/* Medical Symbol */}
+              <div className="opacity-60">
+                <Stethoscope className="w-12 h-12" />
               </div>
             </div>
           </div>
 
           {/* Patient Info Row */}
           {selectedPatient && (
-            <div className="border-b border-gray-200 pb-4 mb-4">
+            <div className="border-b border-border pb-4 mb-4">
               <div className="grid grid-cols-2 gap-x-8 gap-y-2 text-sm">
                 <div className="flex">
                   <span className="font-medium w-24">Patient Name:</span>
-                  <span className="border-b border-gray-300 flex-1">{selectedPatient.name}</span>
+                  <span className="border-b border-border flex-1">{selectedPatient.name}</span>
                 </div>
-                {selectedPatient.address && (
-                  <div className="flex">
-                    <span className="font-medium w-24">Address:</span>
-                    <span className="border-b border-gray-300 flex-1">{selectedPatient.address}</span>
-                  </div>
-                )}
+                <div className="flex">
+                  <span className="font-medium w-24">Age:</span>
+                  <span className="border-b border-border flex-1">{getPatientAge(selectedPatient.date_of_birth)}</span>
+                </div>
                 <div className="flex">
                   <span className="font-medium w-24">Date:</span>
-                  <span className="border-b border-gray-300 flex-1">{new Date().toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' })}</span>
+                  <span className="border-b border-border flex-1">{format(selectedDate, 'dd MMM yyyy')}</span>
                 </div>
                 {selectedPatient.allergies && (
                   <div className="flex">
-                    <span className="font-medium w-24 text-red-600">Allergies:</span>
-                    <span className="border-b border-gray-300 flex-1 text-red-600">{selectedPatient.allergies}</span>
+                    <span className="font-medium w-24 text-destructive">Allergies:</span>
+                    <span className="border-b border-border flex-1 text-destructive">{selectedPatient.allergies}</span>
                   </div>
                 )}
               </div>
@@ -519,165 +515,209 @@ const DoctorManagement = () => {
           )}
 
           {/* Rx Symbol */}
-          <div className="text-blue-600 text-5xl font-serif font-bold mb-4">
+          <div className="text-primary text-5xl font-serif font-bold mb-4">
             <span className="relative">R<sub className="text-3xl">x</sub></span>
           </div>
         </div>
 
-        {/* Header with Patient Search - Hidden on print */}
-        <div className="flex flex-col gap-4 print:hidden">
-          <div>
-            <h1 className="text-xl md:text-2xl font-bold text-foreground">Patient Management</h1>
-            <p className="text-sm text-muted-foreground">Search and manage patient records</p>
-          </div>
+        {/* Header Section - Professional Look */}
+        <div className="print:hidden">
+          <div className="bg-gradient-to-r from-primary/10 via-primary/5 to-transparent rounded-2xl p-6 border border-primary/20">
+            <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
+              <div className="flex items-center gap-4">
+                <div className="h-14 w-14 rounded-xl bg-primary/20 flex items-center justify-center">
+                  <Stethoscope className="h-7 w-7 text-primary" />
+                </div>
+                <div>
+                  <h1 className="text-2xl font-bold text-foreground">Doctor's Prescription</h1>
+                  <p className="text-sm text-muted-foreground">{CLINIC_CONFIG.hospitalName} • {CLINIC_CONFIG.doctorName}</p>
+                </div>
+              </div>
+              
+              {/* Patient Search */}
+              <div className="flex items-center gap-2">
+                <Popover open={searchOpen} onOpenChange={setSearchOpen}>
+                  <PopoverTrigger asChild>
+                    <Button 
+                      variant="outline" 
+                      role="combobox" 
+                      aria-expanded={searchOpen}
+                      className="w-full md:w-80 justify-between bg-background/80 backdrop-blur-sm border-primary/30 hover:border-primary/50 h-11"
+                    >
+                      {selectedPatient ? (
+                        <div className="flex items-center gap-2">
+                          <User className="h-4 w-4 text-primary" />
+                          <span className="truncate font-medium">{selectedPatient.name}</span>
+                        </div>
+                      ) : (
+                        <span className="text-muted-foreground flex items-center gap-2">
+                          <Search className="h-4 w-4" />
+                          Search patient...
+                        </span>
+                      )}
+                      <ChevronDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
+                    </Button>
+                  </PopoverTrigger>
+                  <PopoverContent className="w-full md:w-80 p-0" align="end">
+                    <Command>
+                      <CommandInput 
+                        placeholder="Search by name, ID or phone..." 
+                        value={searchQuery}
+                        onValueChange={setSearchQuery}
+                      />
+                      <CommandList>
+                        <CommandEmpty>No patient found.</CommandEmpty>
+                        <CommandGroup>
+                          {filteredPatients.map((patient) => (
+                            <CommandItem
+                              key={patient.id}
+                              value={patient.id}
+                              onSelect={() => handlePatientSelect(patient)}
+                              className="cursor-pointer py-3"
+                            >
+                              <div className="flex items-center gap-3">
+                                <div className="h-8 w-8 rounded-full bg-primary/10 flex items-center justify-center">
+                                  <User className="h-4 w-4 text-primary" />
+                                </div>
+                                <div className="flex flex-col">
+                                  <span className="font-medium">{patient.name}</span>
+                                  <span className="text-xs text-muted-foreground">
+                                    {patient.phone} {patient.date_of_birth && `• ${getPatientAge(patient.date_of_birth)}`}
+                                  </span>
+                                </div>
+                              </div>
+                            </CommandItem>
+                          ))}
+                        </CommandGroup>
+                      </CommandList>
+                    </Command>
+                  </PopoverContent>
+                </Popover>
 
-          {/* Patient Search */}
-          <div className="flex flex-col sm:flex-row gap-3">
-            <Popover open={searchOpen} onOpenChange={setSearchOpen}>
-              <PopoverTrigger asChild>
-                <Button 
-                  variant="outline" 
-                  role="combobox" 
-                  aria-expanded={searchOpen}
-                  className="w-full sm:w-80 justify-between"
-                >
-                  {selectedPatient ? (
-                    <span className="truncate">{selectedPatient.name} ({selectedPatient.id.slice(0, 8)}...)</span>
-                  ) : (
-                    <span className="text-muted-foreground">Search patient by name, ID or phone...</span>
-                  )}
-                  <Search className="ml-2 h-4 w-4 shrink-0 opacity-50" />
-                </Button>
-              </PopoverTrigger>
-              <PopoverContent className="w-full sm:w-80 p-0" align="start">
-                <Command>
-                  <CommandInput 
-                    placeholder="Search patients..." 
-                    value={searchQuery}
-                    onValueChange={setSearchQuery}
-                  />
-                  <CommandList>
-                    <CommandEmpty>No patient found.</CommandEmpty>
-                    <CommandGroup>
-                      {filteredPatients.map((patient) => (
-                        <CommandItem
-                          key={patient.id}
-                          value={patient.id}
-                          onSelect={() => handlePatientSelect(patient)}
-                          className="cursor-pointer"
-                        >
-                          <div className="flex flex-col">
-                            <span className="font-medium">{patient.name}</span>
-                            <span className="text-xs text-muted-foreground">
-                              ID: {patient.id.slice(0, 8)}... | {patient.phone}
-                            </span>
-                          </div>
-                        </CommandItem>
-                      ))}
-                    </CommandGroup>
-                  </CommandList>
-                </Command>
-              </PopoverContent>
-            </Popover>
-
-            {selectedPatient && (
-              <Button 
-                variant="ghost" 
-                size="icon"
-                onClick={() => setSelectedPatient(null)}
-                className="shrink-0"
-              >
-                <X className="h-4 w-4" />
-              </Button>
-            )}
+                {selectedPatient && (
+                  <Button 
+                    variant="ghost" 
+                    size="icon"
+                    onClick={() => setSelectedPatient(null)}
+                    className="shrink-0 hover:bg-destructive/10 hover:text-destructive"
+                  >
+                    <X className="h-4 w-4" />
+                  </Button>
+                )}
+              </div>
+            </div>
           </div>
         </div>
 
-        {/* Selected Patient Info - Print Header */}
+        {/* Selected Patient Info Card - Professional Style */}
         {selectedPatient && (
           <div className="print:block">
-            <Card className="print:border-0 print:shadow-none">
-              <CardContent className="p-4 md:p-6 print:p-0">
-                <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 md:gap-6 print:grid-cols-3 print:gap-4">
-                  {/* Patient Basic Info */}
-                  <div className="space-y-3">
-                    <div className="flex items-center gap-3">
-                      <div className="h-12 w-12 rounded-full bg-primary/10 flex items-center justify-center print:hidden">
-                        <User className="h-6 w-6 text-primary" />
+            {/* Patient Profile Card */}
+            <Card className="print:border-0 print:shadow-none overflow-hidden">
+              <div className="bg-gradient-to-r from-primary/5 to-transparent border-b border-border/50">
+                <CardContent className="p-4 md:p-6 print:p-0">
+                  <div className="flex flex-col lg:flex-row gap-6">
+                    {/* Patient Avatar & Basic Info */}
+                    <div className="flex items-start gap-4 flex-1">
+                      <div className="h-16 w-16 rounded-2xl bg-gradient-to-br from-primary to-primary/60 flex items-center justify-center text-primary-foreground text-xl font-bold shadow-lg print:hidden">
+                        {selectedPatient.name.charAt(0).toUpperCase()}
                       </div>
-                      <div>
-                        <h2 className="text-lg font-semibold print:text-base">
-                          {selectedPatient.name}
-                          <Badge variant="secondary" className="ml-2 text-xs">
+                      <div className="flex-1 space-y-2">
+                        <div className="flex items-center gap-3 flex-wrap">
+                          <h2 className="text-xl font-bold text-foreground print:text-base">
+                            {selectedPatient.name}
+                          </h2>
+                          <Badge className="bg-primary/20 text-primary border-primary/30 font-semibold text-sm px-3">
                             {getPatientAge(selectedPatient.date_of_birth)}
                           </Badge>
-                        </h2>
-                        <p className="text-sm text-muted-foreground">ID: {selectedPatient.id.slice(0, 8)}...</p>
-                        {selectedPatient.phone && (
-                          <p className="text-sm text-muted-foreground">Phone: {selectedPatient.phone}</p>
+                        </div>
+                        <div className="flex flex-wrap items-center gap-4 text-sm text-muted-foreground">
+                          {selectedPatient.phone && (
+                            <div className="flex items-center gap-1.5">
+                              <Phone className="h-3.5 w-3.5" />
+                              <span>{selectedPatient.phone}</span>
+                            </div>
+                          )}
+                          {selectedPatient.date_of_birth && (
+                            <div className="flex items-center gap-1.5">
+                              <CalendarIcon className="h-3.5 w-3.5" />
+                              <span>{format(parseISO(selectedPatient.date_of_birth), 'dd MMM yyyy')}</span>
+                            </div>
+                          )}
+                        </div>
+                        {selectedPatient.address && (
+                          <div className="flex items-start gap-1.5 text-sm text-muted-foreground">
+                            <MapPin className="h-3.5 w-3.5 mt-0.5 shrink-0" />
+                            <span>{selectedPatient.address}</span>
+                          </div>
                         )}
                       </div>
                     </div>
-                    {selectedPatient.address && (
-                      <div className="flex items-start gap-2 text-sm">
-                        <MapPin className="h-4 w-4 text-muted-foreground mt-0.5 print:hidden" />
-                        <span className="text-muted-foreground">
-                          <span className="hidden print:inline">Address: </span>
-                          {selectedPatient.address}
-                        </span>
+
+                    {/* Quick Info Cards */}
+                    <div className="flex flex-col sm:flex-row lg:flex-col gap-3 lg:w-80 print:hidden">
+                      {/* Allergies Card */}
+                      <div className={cn(
+                        "flex-1 rounded-xl p-3 border transition-all",
+                        selectedPatient.allergies 
+                          ? "bg-destructive/5 border-destructive/20" 
+                          : "bg-muted/30 border-border/50"
+                      )}>
+                        <div className="flex items-center justify-between mb-1.5">
+                          <div className="flex items-center gap-1.5">
+                            <AlertTriangle className={cn(
+                              "h-4 w-4",
+                              selectedPatient.allergies ? "text-destructive" : "text-muted-foreground"
+                            )} />
+                            <span className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Allergies</span>
+                          </div>
+                          <Button 
+                            variant="ghost" 
+                            size="sm" 
+                            onClick={() => {
+                              setTempAllergies(selectedPatient.allergies || '');
+                              setEditingAllergies(true);
+                            }}
+                            className="h-6 w-6 p-0"
+                          >
+                            <Edit2 className="h-3 w-3" />
+                          </Button>
+                        </div>
+                        <p className={cn(
+                          "text-sm line-clamp-2",
+                          selectedPatient.allergies ? "text-destructive font-medium" : "text-muted-foreground italic"
+                        )}>
+                          {selectedPatient.allergies || "None recorded"}
+                        </p>
                       </div>
-                    )}
-                  </div>
 
-                  {/* Allergies - Editable, hide on print if empty */}
-                  <div className={`space-y-2 ${!selectedPatient.allergies ? 'print:hidden' : ''}`}>
-                    <div className="flex items-center justify-between">
-                      <Label className="flex items-center gap-2">
-                        <AlertTriangle className="h-4 w-4 text-destructive" />
-                        Allergies
-                      </Label>
-                      <Button 
-                        variant="ghost" 
-                        size="sm" 
-                        onClick={() => {
-                          setTempAllergies(selectedPatient.allergies || '');
-                          setEditingAllergies(true);
-                        }}
-                        className="h-7 px-2 print:hidden"
-                      >
-                        <Edit2 className="h-3 w-3" />
-                      </Button>
-                    </div>
-                    <div className="p-2 bg-destructive/5 rounded-md min-h-[60px] text-sm print:bg-transparent print:p-0 print:min-h-0">
-                      {selectedPatient.allergies || <span className="text-muted-foreground italic print:hidden">No allergies recorded</span>}
-                    </div>
-                  </div>
-
-                  {/* History - Editable, hide on print if empty */}
-                  <div className={`space-y-2 ${!selectedPatient.medical_history ? 'print:hidden' : ''}`}>
-                    <div className="flex items-center justify-between">
-                      <Label className="flex items-center gap-2">
-                        <FileText className="h-4 w-4 text-primary" />
-                        Medical History
-                      </Label>
-                      <Button 
-                        variant="ghost" 
-                        size="sm" 
-                        onClick={() => {
-                          setTempHistory(selectedPatient.medical_history || '');
-                          setEditingHistory(true);
-                        }}
-                        className="h-7 px-2 print:hidden"
-                      >
-                        <Edit2 className="h-3 w-3" />
-                      </Button>
-                    </div>
-                    <div className="p-2 bg-muted/50 rounded-md min-h-[60px] text-sm print:bg-transparent print:p-0 print:min-h-0">
-                      {selectedPatient.medical_history || <span className="text-muted-foreground italic print:hidden">No history recorded</span>}
+                      {/* Medical History Card */}
+                      <div className="flex-1 rounded-xl p-3 bg-muted/30 border border-border/50">
+                        <div className="flex items-center justify-between mb-1.5">
+                          <div className="flex items-center gap-1.5">
+                            <FileText className="h-4 w-4 text-primary" />
+                            <span className="text-xs font-medium text-muted-foreground uppercase tracking-wide">History</span>
+                          </div>
+                          <Button 
+                            variant="ghost" 
+                            size="sm" 
+                            onClick={() => {
+                              setTempHistory(selectedPatient.medical_history || '');
+                              setEditingHistory(true);
+                            }}
+                            className="h-6 w-6 p-0"
+                          >
+                            <Edit2 className="h-3 w-3" />
+                          </Button>
+                        </div>
+                        <p className="text-sm text-muted-foreground line-clamp-2">
+                          {selectedPatient.medical_history || <span className="italic">None recorded</span>}
+                        </p>
+                      </div>
                     </div>
                   </div>
-                </div>
-              </CardContent>
+                </CardContent>
+              </div>
             </Card>
           </div>
         )}
@@ -687,39 +727,48 @@ const DoctorManagement = () => {
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 md:gap-6 print:grid-cols-2 print:gap-4">
             {/* Left Column */}
             <div className="space-y-4 print:space-y-2">
-              {/* Symptoms - hide on print if empty */}
-              <Card className={`print:border-0 print:shadow-none ${!symptoms ? 'print:hidden' : ''}`}>
-                <CardHeader className="pb-3 print:pb-1">
+              {/* Symptoms Card */}
+              <Card className={cn(
+                "print:border-0 print:shadow-none border-l-4 border-l-accent",
+                !symptoms && 'print:hidden'
+              )}>
+                <CardHeader className="pb-2 print:pb-1">
                   <CardTitle className="text-base flex items-center gap-2 print:text-sm">
-                    <Stethoscope className="h-4 w-4 print:h-3 print:w-3" />
-                    Symptoms
+                    <div className="h-8 w-8 rounded-lg bg-accent/10 flex items-center justify-center">
+                      <Stethoscope className="h-4 w-4 text-accent print:h-3 print:w-3" />
+                    </div>
+                    <span>Chief Complaints</span>
                   </CardTitle>
                 </CardHeader>
                 <CardContent className="print:pt-0">
                   <Textarea 
-                    placeholder="Enter patient symptoms..."
+                    placeholder="Enter patient symptoms and complaints..."
                     value={symptoms}
                     onChange={(e) => setSymptoms(e.target.value)}
-                    className="min-h-[80px] print:border-0 print:min-h-0 print:p-0 print:resize-none"
+                    className="min-h-[100px] border-dashed resize-none print:border-0 print:min-h-0 print:p-0"
                   />
                 </CardContent>
               </Card>
 
-              {/* Examination - hide on print if empty */}
-              <Card className={`print:border-0 print:shadow-none ${!examination ? 'print:hidden' : ''}`}>
-                <CardHeader className="pb-3 print:pb-1">
+              {/* Examination Card */}
+              <Card className={cn(
+                "print:border-0 print:shadow-none border-l-4 border-l-primary",
+                !examination && 'print:hidden'
+              )}>
+                <CardHeader className="pb-2 print:pb-1">
                   <CardTitle className="text-base flex items-center gap-2 print:text-sm">
-                    <Activity className="h-4 w-4 print:h-3 print:w-3" />
-                    Examination
+                    <div className="h-8 w-8 rounded-lg bg-primary/10 flex items-center justify-center">
+                      <Activity className="h-4 w-4 text-primary print:h-3 print:w-3" />
+                    </div>
+                    <span>Examination Findings</span>
                   </CardTitle>
                 </CardHeader>
                 <CardContent className="print:pt-0 space-y-2">
-                  {/* Examination Search from Inventory */}
                   <Popover open={examinationSearchOpen} onOpenChange={setExaminationSearchOpen}>
                     <PopoverTrigger asChild>
-                      <Button variant="outline" size="sm" className="w-full justify-start print:hidden">
+                      <Button variant="outline" size="sm" className="w-full justify-start border-dashed print:hidden">
                         <Plus className="h-3 w-3 mr-2" />
-                        Select from inventory...
+                        Add from inventory...
                       </Button>
                     </PopoverTrigger>
                     <PopoverContent className="w-[300px] p-0" align="start">
@@ -757,56 +806,75 @@ const DoctorManagement = () => {
                     </PopoverContent>
                   </Popover>
                   <Textarea 
-                    placeholder="Enter examination findings or select from inventory..."
+                    placeholder="Document clinical examination findings..."
                     value={examination}
                     onChange={(e) => setExamination(e.target.value)}
-                    className="min-h-[80px] print:border-0 print:min-h-0 print:p-0 print:resize-none"
+                    className="min-h-[100px] border-dashed resize-none print:border-0 print:min-h-0 print:p-0"
                   />
                 </CardContent>
               </Card>
 
-              {/* Procedures - hide on print if empty */}
-              <Card className={`print:border-0 print:shadow-none ${procedures.length === 0 ? 'print:hidden' : ''}`}>
-                <CardHeader className="pb-3 flex flex-row items-center justify-between print:pb-1">
+              {/* Procedures Card */}
+              <Card className={cn(
+                "print:border-0 print:shadow-none border-l-4 border-l-warning",
+                procedures.length === 0 && 'print:hidden'
+              )}>
+                <CardHeader className="pb-2 flex flex-row items-center justify-between print:pb-1">
                   <CardTitle className="text-base flex items-center gap-2 print:text-sm">
-                    <Activity className="h-4 w-4 print:h-3 print:w-3" />
-                    Procedures
+                    <div className="h-8 w-8 rounded-lg bg-warning/10 flex items-center justify-center">
+                      <Activity className="h-4 w-4 text-warning print:h-3 print:w-3" />
+                    </div>
+                    <span>Procedures</span>
+                    {procedures.length > 0 && (
+                      <Badge variant="secondary" className="ml-1">{procedures.length}</Badge>
+                    )}
                   </CardTitle>
                   <Button 
                     size="sm" 
                     variant="outline"
                     onClick={() => setProcedureDialogOpen(true)}
-                    className="h-8 print:hidden"
+                    className="h-8 border-dashed print:hidden"
                   >
                     <Plus className="h-3 w-3 mr-1" /> Add
                   </Button>
                 </CardHeader>
                 <CardContent className="print:pt-0">
                   {procedures.length === 0 ? (
-                    <p className="text-sm text-muted-foreground text-center py-4 print:hidden">No procedures</p>
+                    <div className="flex flex-col items-center justify-center py-6 text-center print:hidden">
+                      <Activity className="h-8 w-8 text-muted-foreground/30 mb-2" />
+                      <p className="text-sm text-muted-foreground">No procedures scheduled</p>
+                    </div>
                   ) : (
                     <div className="space-y-2 print:space-y-1">
                       {procedures.map((proc) => (
-                        <div key={proc.id} className="flex items-center justify-between p-2 bg-muted/50 rounded-md print:bg-transparent print:p-1 print:border-b">
+                        <div key={proc.id} className="flex items-center justify-between p-3 bg-gradient-to-r from-muted/50 to-transparent rounded-lg border border-border/50 print:bg-transparent print:p-1 print:border-b print:rounded-none">
                           <div className="flex-1">
                             <p className="text-sm font-medium print:text-xs">{proc.name}</p>
-                            <div className="flex items-center gap-2 mt-1">
+                            <div className="flex items-center gap-2 mt-1.5">
                               <Badge 
                                 variant={proc.status === 'completed' ? 'default' : proc.status === 'in-progress' ? 'secondary' : 'outline'} 
-                                className="text-xs capitalize print:text-[10px]"
+                                className={cn(
+                                  "text-xs capitalize print:text-[10px]",
+                                  proc.status === 'completed' && "bg-success text-success-foreground"
+                                )}
                               >
                                 {proc.status}
                               </Badge>
-                              {proc.date && <span className="text-xs text-muted-foreground print:text-[10px]">{proc.date}</span>}
+                              {proc.date && (
+                                <span className="text-xs text-muted-foreground flex items-center gap-1 print:text-[10px]">
+                                  <CalendarIcon className="h-3 w-3" />
+                                  {proc.date}
+                                </span>
+                              )}
                             </div>
                           </div>
                           <Button 
                             variant="ghost" 
                             size="icon" 
                             onClick={() => deleteProcedure(proc.id)}
-                            className="h-8 w-8 print:hidden"
+                            className="h-8 w-8 hover:bg-destructive/10 hover:text-destructive print:hidden"
                           >
-                            <Trash2 className="h-4 w-4 text-destructive" />
+                            <Trash2 className="h-4 w-4" />
                           </Button>
                         </div>
                       ))}
@@ -816,21 +884,28 @@ const DoctorManagement = () => {
               </Card>
             </div>
 
-            {/* Right Column - Medicines - hide on print if empty */}
-            <div className={`${prescriptions.length === 0 ? 'print:hidden' : ''}`}>
-              <Card className="print:border-0 print:shadow-none">
+            {/* Right Column - Prescription/Medicines */}
+            <div className={cn("print:hidden", prescriptions.length === 0 && 'print:hidden')}>
+              <Card className="print:border-0 print:shadow-none border-l-4 border-l-success h-full">
                 <CardHeader className="pb-3 print:pb-1 space-y-3">
                   <div className="flex flex-row items-center justify-between">
                     <CardTitle className="text-base flex items-center gap-2 print:text-sm">
-                      <Pill className="h-4 w-4 print:h-3 print:w-3" />
-                      Medicines
+                      <div className="h-8 w-8 rounded-lg bg-success/10 flex items-center justify-center">
+                        <Pill className="h-4 w-4 text-success print:h-3 print:w-3" />
+                      </div>
+                      <span>Prescription</span>
+                      {filteredPrescriptions.length > 0 && (
+                        <Badge variant="secondary" className="ml-1 bg-success/10 text-success">
+                          {showAllDates ? prescriptions.length : filteredPrescriptions.length}
+                        </Badge>
+                      )}
                     </CardTitle>
                     <Button 
                       size="sm" 
                       onClick={() => setMedicineDialogOpen(true)}
-                      className="h-8 print:hidden"
+                      className="h-8 bg-success hover:bg-success/90 print:hidden"
                     >
-                      <Plus className="h-3 w-3 mr-1" /> Add
+                      <Plus className="h-3 w-3 mr-1" /> Add Medicine
                     </Button>
                   </div>
                   
@@ -927,39 +1002,47 @@ const DoctorManagement = () => {
                   )}
                 </CardHeader>
                 <CardContent className="print:pt-0">
-                  <ScrollArea className="h-[300px] md:h-[400px] print:h-auto print:overflow-visible">
+                  <ScrollArea className="h-[350px] md:h-[450px] print:h-auto print:overflow-visible">
                     {showAllDates ? (
                       // Grouped by date view
                       prescriptions.length === 0 ? (
-                        <p className="text-sm text-muted-foreground text-center py-8 print:hidden">No medicines prescribed</p>
+                        <div className="flex flex-col items-center justify-center py-12 text-center print:hidden">
+                          <Pill className="h-10 w-10 text-muted-foreground/30 mb-3" />
+                          <p className="text-sm text-muted-foreground">No medicines prescribed yet</p>
+                          <p className="text-xs text-muted-foreground/60 mt-1">Click "Add Medicine" to start prescribing</p>
+                        </div>
                       ) : (
                         <div className="space-y-4 pr-2 print:space-y-1 print:pr-0">
                           {Object.entries(groupedPrescriptions)
                             .sort(([a], [b]) => new Date(b).getTime() - new Date(a).getTime())
                             .map(([date, meds]) => (
                               <div key={date} className="space-y-2">
-                                <div className="flex items-center gap-2 sticky top-0 bg-background py-1">
-                                  <CalendarIcon className="h-3 w-3 text-muted-foreground" />
-                                  <span className="text-xs font-medium text-muted-foreground">
-                                    {format(parseISO(date), 'dd MMM yyyy')}
+                                <div className="flex items-center gap-2 sticky top-0 bg-card/95 backdrop-blur-sm py-2 px-2 -mx-2 rounded-lg border-b border-border/50">
+                                  <CalendarIcon className="h-3.5 w-3.5 text-success" />
+                                  <span className="text-xs font-semibold text-foreground">
+                                    {format(parseISO(date), 'EEEE, dd MMM yyyy')}
                                   </span>
-                                  <Badge variant="secondary" className="text-xs">{meds.length}</Badge>
+                                  <Badge className="bg-success/10 text-success text-xs">{meds.length} items</Badge>
                                 </div>
                                 {meds.map((med, index) => (
-                                  <div key={med.id} className="flex items-start justify-between p-3 border rounded-lg print:p-1 print:border-0 print:border-b print:rounded-none">
-                                    <div className="space-y-1 flex-1 print:space-y-0 print:flex print:items-center print:gap-2">
-                                      <span className="hidden print:inline text-xs font-medium">{index + 1}.</span>
-                                      <p className="font-medium text-sm print:text-xs print:inline">{med.name}</p>
-                                      <p className="text-xs text-muted-foreground print:inline">- {med.dose}</p>
-                                      <div className="pt-1 print:pt-0 print:inline print:ml-2">{renderTimingBadges(med)}</div>
+                                  <div key={med.id} className="flex items-start justify-between p-3 bg-gradient-to-r from-muted/30 to-transparent rounded-lg border border-border/50 hover:border-success/30 transition-colors print:p-1 print:border-0 print:border-b print:rounded-none">
+                                    <div className="flex items-start gap-3 flex-1">
+                                      <div className="h-7 w-7 rounded-full bg-success/10 flex items-center justify-center text-success text-xs font-bold shrink-0 mt-0.5">
+                                        {index + 1}
+                                      </div>
+                                      <div className="space-y-1.5 flex-1 print:space-y-0">
+                                        <p className="font-semibold text-sm print:text-xs">{med.name}</p>
+                                        <p className="text-xs text-muted-foreground">Dose: {med.dose}</p>
+                                        <div className="pt-0.5 print:pt-0">{renderTimingBadges(med)}</div>
+                                      </div>
                                     </div>
                                     <Button 
                                       variant="ghost" 
                                       size="icon" 
                                       onClick={() => deletePrescription(med.id)}
-                                      className="h-8 w-8 print:hidden"
+                                      className="h-8 w-8 hover:bg-destructive/10 hover:text-destructive print:hidden"
                                     >
-                                      <Trash2 className="h-4 w-4 text-destructive" />
+                                      <Trash2 className="h-4 w-4" />
                                     </Button>
                                   </div>
                                 ))}
@@ -970,26 +1053,34 @@ const DoctorManagement = () => {
                     ) : (
                       // By date view
                       filteredPrescriptions.length === 0 ? (
-                        <p className="text-sm text-muted-foreground text-center py-8 print:hidden">
-                          No medicines for {format(selectedDate, 'dd MMM yyyy')}
-                        </p>
+                        <div className="flex flex-col items-center justify-center py-12 text-center print:hidden">
+                          <Pill className="h-10 w-10 text-muted-foreground/30 mb-3" />
+                          <p className="text-sm text-muted-foreground">
+                            No medicines for {format(selectedDate, 'dd MMM yyyy')}
+                          </p>
+                          <p className="text-xs text-muted-foreground/60 mt-1">Select a different date or add new medicines</p>
+                        </div>
                       ) : (
                         <div className="space-y-2 pr-2 print:space-y-1 print:pr-0">
                           {filteredPrescriptions.map((med, index) => (
-                            <div key={med.id} className="flex items-start justify-between p-3 border rounded-lg print:p-1 print:border-0 print:border-b print:rounded-none">
-                              <div className="space-y-1 flex-1 print:space-y-0 print:flex print:items-center print:gap-2">
-                                <span className="hidden print:inline text-xs font-medium">{index + 1}.</span>
-                                <p className="font-medium text-sm print:text-xs print:inline">{med.name}</p>
-                                <p className="text-xs text-muted-foreground print:inline">- {med.dose}</p>
-                                <div className="pt-1 print:pt-0 print:inline print:ml-2">{renderTimingBadges(med)}</div>
+                            <div key={med.id} className="flex items-start justify-between p-3 bg-gradient-to-r from-muted/30 to-transparent rounded-lg border border-border/50 hover:border-success/30 transition-colors print:p-1 print:border-0 print:border-b print:rounded-none">
+                              <div className="flex items-start gap-3 flex-1">
+                                <div className="h-7 w-7 rounded-full bg-success/10 flex items-center justify-center text-success text-xs font-bold shrink-0 mt-0.5">
+                                  {index + 1}
+                                </div>
+                                <div className="space-y-1.5 flex-1 print:space-y-0">
+                                  <p className="font-semibold text-sm print:text-xs">{med.name}</p>
+                                  <p className="text-xs text-muted-foreground">Dose: {med.dose}</p>
+                                  <div className="pt-0.5 print:pt-0">{renderTimingBadges(med)}</div>
+                                </div>
                               </div>
                               <Button 
                                 variant="ghost" 
                                 size="icon" 
                                 onClick={() => deletePrescription(med.id)}
-                                className="h-8 w-8 print:hidden"
+                                className="h-8 w-8 hover:bg-destructive/10 hover:text-destructive print:hidden"
                               >
-                                <Trash2 className="h-4 w-4 text-destructive" />
+                                <Trash2 className="h-4 w-4" />
                               </Button>
                             </div>
                           ))}
@@ -1002,32 +1093,41 @@ const DoctorManagement = () => {
             </div>
           </div>
         ) : (
-          <Card className="print:hidden">
-            <CardContent className="flex flex-col items-center justify-center py-16">
-              <Search className="h-12 w-12 text-muted-foreground mb-4" />
-              <h3 className="text-lg font-medium mb-2">Select a Patient</h3>
-              <p className="text-sm text-muted-foreground text-center max-w-sm">
-                Use the search field above to find and select a patient to view and manage their records.
+          <Card className="print:hidden border-dashed border-2">
+            <CardContent className="flex flex-col items-center justify-center py-20">
+              <div className="h-20 w-20 rounded-full bg-primary/10 flex items-center justify-center mb-6">
+                <User className="h-10 w-10 text-primary/60" />
+              </div>
+              <h3 className="text-xl font-semibold mb-2">No Patient Selected</h3>
+              <p className="text-sm text-muted-foreground text-center max-w-md mb-6">
+                Search and select a patient from the dropdown above to view their medical records, add prescriptions, and manage their treatment.
               </p>
+              <Button 
+                variant="outline" 
+                onClick={() => setSearchOpen(true)}
+                className="gap-2"
+              >
+                <Search className="h-4 w-4" />
+                Search Patients
+              </Button>
             </CardContent>
           </Card>
         )}
 
-        {/* Action Buttons */}
+        {/* Action Buttons - Floating Style */}
         {selectedPatient && (
           <div className="flex flex-wrap gap-3 justify-end print:hidden">
-            <Button variant="outline" onClick={handleSubmit}>
-              <Save className="h-4 w-4 mr-2" />
-              Submit
-            </Button>
-            <Button variant="outline" onClick={() => {}}>
-              <Edit2 className="h-4 w-4 mr-2" />
-              Edit
-            </Button>
-            <Button variant="outline" onClick={handlePrint}>
-              <Printer className="h-4 w-4 mr-2" />
-              Print
-            </Button>
+            <div className="flex items-center gap-2 bg-muted/50 rounded-xl p-2">
+              <Button variant="ghost" size="sm" onClick={handleSubmit} className="gap-2">
+                <Save className="h-4 w-4" />
+                Save Visit
+              </Button>
+              <Separator orientation="vertical" className="h-6" />
+              <Button variant="ghost" size="sm" onClick={handlePrint} className="gap-2">
+                <Printer className="h-4 w-4" />
+                Print Rx
+              </Button>
+            </div>
           </div>
         )}
       </div>

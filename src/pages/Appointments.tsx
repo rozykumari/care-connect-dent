@@ -454,7 +454,7 @@ const Appointments = () => {
                         </SelectTrigger>
                         <SelectContent>
                           {availableTimeSlots.length === 0 ? (
-                            <SelectItem value="" disabled>No available slots</SelectItem>
+                            <div className="py-2 px-3 text-sm text-muted-foreground">No available slots</div>
                           ) : (
                             availableTimeSlots.map((time) => (
                               <SelectItem key={time} value={time}>

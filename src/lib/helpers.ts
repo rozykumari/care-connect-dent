@@ -144,3 +144,20 @@ export function formatAge(dateOfBirth: string | null | undefined): string {
   const age = calculateAge(dateOfBirth);
   return age !== null ? `${age} yrs` : '';
 }
+
+/**
+ * Escapes HTML special characters to prevent XSS attacks.
+ * Use this when inserting user-provided content into HTML strings.
+ * 
+ * @param unsafe - The string that may contain HTML special characters
+ * @returns A safe string with HTML entities escaped
+ */
+export function escapeHtml(unsafe: string | null | undefined): string {
+  if (unsafe == null) return '';
+  return String(unsafe)
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+    .replace(/"/g, "&quot;")
+    .replace(/'/g, "&#039;");
+}

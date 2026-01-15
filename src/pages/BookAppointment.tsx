@@ -23,12 +23,10 @@ import { toast } from "sonner";
 
 interface DoctorAvailability {
   id: string;
-  doctor_id: string;
   day_of_week: number;
   start_time: string;
   end_time: string;
   slot_duration: number;
-  is_active: boolean;
 }
 
 interface Appointment {
@@ -83,11 +81,9 @@ const BookAppointment = () => {
 
   const fetchData = async () => {
     try {
-      // Fetch availability
+      // Fetch availability using secure function (doesn't expose doctor_id)
       const { data: availData, error: availError } = await supabase
-        .from("doctor_availability")
-        .select("*")
-        .eq("is_active", true);
+        .rpc("get_doctor_availability");
 
       if (availError) throw availError;
       setAvailability(availData || []);
@@ -186,25 +182,17 @@ const BookAppointment = () => {
       return;
     }
 
-    // Get doctor_id from availability (assuming single doctor)
-    const doctorId = availability[0]?.doctor_id;
-    if (!doctorId) {
-      toast.error("No doctor available");
-      return;
-    }
-
     setSubmitting(true);
     try {
-      const { error } = await supabase.from("appointments").insert({
-        patient_id: patientRecord.id,
-        doctor_id: doctorId,
-        date: format(selectedDate, "yyyy-MM-dd"),
-        time: selectedTime,
-        type: selectedType,
-        status: "scheduled",
-        notes: notes || null,
-        duration: 30,
-        family_member_id: selectedPatientType === "family" ? selectedFamilyMemberId : null,
+      // Use secure RPC function that handles doctor_id server-side
+      const { data, error } = await supabase.rpc("book_appointment", {
+        p_patient_id: patientRecord.id,
+        p_date: format(selectedDate, "yyyy-MM-dd"),
+        p_time: selectedTime,
+        p_type: selectedType,
+        p_notes: notes || null,
+        p_duration: 30,
+        p_family_member_id: selectedPatientType === "family" ? selectedFamilyMemberId : null,
       });
 
       if (error) throw error;
@@ -212,9 +200,17 @@ const BookAppointment = () => {
       setBookingSuccess(true);
       toast.success("Appointment booked successfully!");
       fetchData();
-    } catch (error) {
+    } catch (error: any) {
       console.error("Error booking appointment:", error);
-      toast.error("Failed to book appointment");
+      // Handle specific error messages from the RPC function
+      const message = error?.message || "Failed to book appointment";
+      if (message.includes("already booked")) {
+        toast.error("This time slot is already booked. Please select another time.");
+      } else if (message.includes("No doctor available")) {
+        toast.error("No doctor available. Please try again later.");
+      } else {
+        toast.error(message);
+      }
     } finally {
       setSubmitting(false);
     }

@@ -30,6 +30,7 @@ import { format } from "date-fns";
 import { Plus, Search, Printer, Eye, Trash2, X } from "lucide-react";
 import { Prescription, Medication } from "@/types";
 import { Textarea } from "@/components/ui/textarea";
+import { escapeHtml } from "@/lib/helpers";
 import { Label } from "@/components/ui/label";
 import {
   AlertDialog,

@@ -36,6 +36,7 @@ import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
+import { escapeHtml } from "@/lib/helpers";
 import { VirtualizedTable, VirtualizedList } from "@/components/ui/virtualized-table";
 
 interface InventoryItem {
@@ -243,9 +244,9 @@ const DoctorInventory = () => {
           <tbody>
             ${filteredInventory.map(item => `
               <tr>
-                <td>${item.name}</td>
-                <td>${item.stock} ${item.unit || 'units'}</td>
-                <td>₹${item.price.toFixed(2)}</td>
+                <td>${escapeHtml(item.name)}</td>
+                <td>${item.stock} ${escapeHtml(item.unit || 'units')}</td>
+                <td>₹${Number(item.price).toFixed(2)}</td>
               </tr>
             `).join('')}
           </tbody>

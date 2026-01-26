@@ -149,18 +149,29 @@ const Appointments = () => {
     if (!formData.patientId || !user) return;
 
     try {
-      const { error } = await supabase.from("appointments").insert({
-        patient_id: formData.patientId,
-        doctor_id: user.id,
-        date: format(formData.date, "yyyy-MM-dd"),
-        time: formData.time,
-        duration: formData.duration,
-        type: formData.type,
-        status: "scheduled",
-        notes: formData.notes,
+      // Use the create_appointment RPC to validate slot availability
+      const { data, error } = await supabase.rpc('create_appointment', {
+        p_patient_id: formData.patientId,
+        p_doctor_id: user.id,
+        p_date: format(formData.date, "yyyy-MM-dd"),
+        p_time: formData.time,
+        p_type: formData.type,
+        p_duration: formData.duration,
+        p_notes: formData.notes || null,
+        p_family_member_id: null
       });
 
-      if (error) throw error;
+      if (error) {
+        // Handle specific error messages from the RPC
+        if (error.message.includes('not available in doctor schedule')) {
+          toast.error("This time slot is outside your configured availability hours");
+        } else if (error.message.includes('already booked')) {
+          toast.error("This time slot is already booked");
+        } else {
+          throw error;
+        }
+        return;
+      }
 
       toast.success("Appointment scheduled successfully");
       setIsDialogOpen(false);

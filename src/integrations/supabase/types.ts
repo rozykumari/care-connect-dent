@@ -481,6 +481,19 @@ export type Database = {
         }
         Returns: string
       }
+      create_appointment: {
+        Args: {
+          p_date: string
+          p_doctor_id: string
+          p_duration?: number
+          p_family_member_id?: string
+          p_notes?: string
+          p_patient_id: string
+          p_time: string
+          p_type?: string
+        }
+        Returns: string
+      }
       get_doctor_availability: {
         Args: never
         Returns: {

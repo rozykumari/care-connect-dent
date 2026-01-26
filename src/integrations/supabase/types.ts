@@ -511,6 +511,27 @@ export type Database = {
         }
         Returns: boolean
       }
+      update_patient_profile: {
+        Args: {
+          p_address?: string
+          p_date_of_birth?: string
+          p_name: string
+          p_patient_id: string
+          p_phone: string
+        }
+        Returns: boolean
+      }
+      validate_date_not_future: {
+        Args: { date_input: string }
+        Returns: boolean
+      }
+      validate_date_not_past: { Args: { date_input: string }; Returns: boolean }
+      validate_email: { Args: { email_input: string }; Returns: boolean }
+      validate_phone: { Args: { phone_input: string }; Returns: boolean }
+      validate_text_length: {
+        Args: { max_length: number; text_input: string }
+        Returns: boolean
+      }
     }
     Enums: {
       app_role: "admin" | "patient" | "doctor"

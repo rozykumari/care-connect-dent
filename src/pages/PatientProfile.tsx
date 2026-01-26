@@ -136,8 +136,14 @@ const PatientProfile = () => {
   };
 
   const saveProfile = async () => {
+    // Client-side validation (matches server-side)
     if (!editForm.name.trim() || !editForm.phone.trim()) {
       toast.error('Name and phone are required');
+      return;
+    }
+
+    if (editForm.name.trim().length > 100) {
+      toast.error('Name must be less than 100 characters');
       return;
     }
 
@@ -146,45 +152,44 @@ const PatientProfile = () => {
       return;
     }
 
-    // Check if phone is unique (exclude current patient)
-    const { data: existingPatient } = await supabase
-      .from('patients')
-      .select('id')
-      .eq('phone', editForm.phone)
-      .neq('id', patient?.id || '')
-      .maybeSingle();
+    if (editForm.address && editForm.address.length > 500) {
+      toast.error('Address must be less than 500 characters');
+      return;
+    }
 
-    if (existingPatient) {
-      toast.error('This mobile number is already registered with another patient');
+    if (editForm.date_of_birth && new Date(editForm.date_of_birth) > new Date()) {
+      toast.error('Date of birth cannot be in the future');
+      return;
+    }
+
+    if (!patient) {
+      toast.error('No patient record found');
       return;
     }
 
     setSaving(true);
     try {
-      // Update profiles table
-      const { error: profileError } = await supabase
-        .from('profiles')
-        .update({
-          full_name: editForm.name,
-          phone: editForm.phone,
-        })
-        .eq('user_id', user?.id);
+      // Use the validated RPC function for server-side validation
+      const { error } = await supabase.rpc('update_patient_profile', {
+        p_patient_id: patient.id,
+        p_name: editForm.name.trim(),
+        p_phone: editForm.phone,
+        p_address: editForm.address || null,
+        p_date_of_birth: editForm.date_of_birth || null,
+      });
 
-      if (profileError) throw profileError;
-
-      // Update or create patient record
-      if (patient) {
-        const { error: patientError } = await supabase
-          .from('patients')
-          .update({
-            name: editForm.name,
-            phone: editForm.phone,
-            address: editForm.address || null,
-            date_of_birth: editForm.date_of_birth || null,
-          })
-          .eq('id', patient.id);
-
-        if (patientError) throw patientError;
+      if (error) {
+        // Handle specific validation errors from server
+        if (error.message.includes('phone number is already registered')) {
+          toast.error('This mobile number is already registered with another patient');
+        } else if (error.message.includes('Name is required')) {
+          toast.error('Name is required');
+        } else if (error.message.includes('Phone must be')) {
+          toast.error('Please enter a valid 10-digit mobile number');
+        } else {
+          throw error;
+        }
+        return;
       }
 
       toast.success('Profile updated successfully');

@@ -1,4 +1,4 @@
-import { useState, useRef } from "react";
+import { useState } from "react";
 import { MainLayout } from "@/components/layout/MainLayout";
 import { useStore } from "@/store/useStore";
 import { Button } from "@/components/ui/button";
@@ -49,7 +49,6 @@ const Prescriptions = () => {
   const [searchQuery, setSearchQuery] = useState("");
   const [viewPrescription, setViewPrescription] = useState<Prescription | null>(null);
   const [deleteId, setDeleteId] = useState<string | null>(null);
-  const printRef = useRef<HTMLDivElement>(null);
 
   const [formData, setFormData] = useState({
     patientId: "",
@@ -123,32 +122,81 @@ const Prescriptions = () => {
   };
 
   const handlePrint = () => {
-    if (printRef.current) {
-      const printWindow = window.open("", "_blank");
-      if (printWindow) {
-        printWindow.document.write(`
-          <html>
-            <head>
-              <title>Prescription</title>
-              <style>
-                body { font-family: Arial, sans-serif; padding: 20px; }
-                .header { text-align: center; border-bottom: 2px solid #0ea5e9; padding-bottom: 10px; margin-bottom: 20px; }
-                .header h1 { color: #0ea5e9; margin: 0; }
-                .patient-info { margin-bottom: 20px; }
-                .medications { margin: 20px 0; }
-                .medication { padding: 10px; border: 1px solid #e5e7eb; margin-bottom: 10px; border-radius: 8px; }
-                .instructions { background: #f3f4f6; padding: 15px; border-radius: 8px; }
-                .footer { margin-top: 40px; text-align: right; }
-              </style>
-            </head>
-            <body>
-              ${printRef.current.innerHTML}
-            </body>
-          </html>
-        `);
-        printWindow.document.close();
-        printWindow.print();
-      }
+    if (!viewPrescription) return;
+    
+    const printWindow = window.open("", "_blank");
+    if (printWindow) {
+      // Build HTML content with explicit escaping to prevent XSS
+      const medicationsHtml = viewPrescription.medications.map((med, index) => `
+        <div class="medication">
+          <p class="font-medium">${index + 1}. ${escapeHtml(med.name)}</p>
+          <p class="text-sm text-muted">${escapeHtml(med.dosage)} | ${escapeHtml(med.frequency)} | ${escapeHtml(med.duration)} | Qty: ${escapeHtml(String(med.quantity))}</p>
+        </div>
+      `).join('');
+
+      const instructionsHtml = viewPrescription.instructions 
+        ? `<div class="instructions"><p class="font-semibold">Instructions:</p><p class="text-sm">${escapeHtml(viewPrescription.instructions)}</p></div>`
+        : '';
+
+      printWindow.document.write(`
+        <html>
+          <head>
+            <title>Prescription</title>
+            <style>
+              body { font-family: Arial, sans-serif; padding: 20px; }
+              .header { text-align: center; border-bottom: 2px solid #0ea5e9; padding-bottom: 10px; margin-bottom: 20px; }
+              .header h1 { color: #0ea5e9; margin: 0; }
+              .patient-info { margin-bottom: 20px; display: grid; grid-template-columns: 1fr 1fr; gap: 16px; padding: 16px 0; }
+              .patient-info .col-span-2 { grid-column: span 2; }
+              .medications { margin: 20px 0; }
+              .medication { padding: 10px; border: 1px solid #e5e7eb; margin-bottom: 10px; border-radius: 8px; }
+              .instructions { background: #f3f4f6; padding: 15px; border-radius: 8px; margin-top: 20px; }
+              .footer { margin-top: 40px; text-align: right; }
+              .font-medium { font-weight: 500; margin: 0; }
+              .font-semibold { font-weight: 600; margin-bottom: 4px; }
+              .text-sm { font-size: 0.875rem; margin: 0; }
+              .text-muted { color: #6b7280; }
+              .label { font-size: 0.875rem; color: #6b7280; margin: 0; }
+            </style>
+          </head>
+          <body>
+            <div class="header">
+              <h1>DentaCare Clinic</h1>
+              <p class="text-muted">123 Medical Street, City</p>
+              <p class="text-muted">Phone: +91 98765 43210</p>
+            </div>
+
+            <div class="patient-info">
+              <div>
+                <p class="label">Patient</p>
+                <p class="font-medium">${escapeHtml(viewPrescription.patientName)}</p>
+              </div>
+              <div>
+                <p class="label">Date</p>
+                <p class="font-medium">${escapeHtml(format(new Date(viewPrescription.date), "MMMM d, yyyy"))}</p>
+              </div>
+              <div class="col-span-2">
+                <p class="label">Diagnosis</p>
+                <p class="font-medium">${escapeHtml(viewPrescription.diagnosis)}</p>
+              </div>
+            </div>
+
+            <div class="medications">
+              <p class="font-semibold">Medications:</p>
+              ${medicationsHtml}
+            </div>
+
+            ${instructionsHtml}
+
+            <div class="footer">
+              <p class="font-medium">${escapeHtml(viewPrescription.dentistName)}</p>
+              <p class="text-sm text-muted">Dentist</p>
+            </div>
+          </body>
+        </html>
+      `);
+      printWindow.document.close();
+      printWindow.print();
     }
   };
 
@@ -382,7 +430,7 @@ const Prescriptions = () => {
           
           {viewPrescription && (
             <>
-              <div ref={printRef} className="space-y-4">
+              <div className="space-y-4">
                 <div className="header text-center border-b-2 border-primary pb-4">
                   <h1 className="text-2xl font-bold text-primary">DentaCare Clinic</h1>
                   <p className="text-muted-foreground">123 Medical Street, City</p>

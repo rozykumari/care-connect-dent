@@ -69,8 +69,6 @@ const Patients = () => {
   const loading = patientsLoading || duesLoading;
 
   const resetForm = useCallback(() => {
-
-  const resetForm = useCallback(() => {
     setFormData({
       name: "",
       email: "",

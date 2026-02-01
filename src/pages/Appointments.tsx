@@ -1,6 +1,5 @@
-import { useState, useEffect, useCallback, useMemo, memo } from "react";
+import { useState, useCallback, useMemo, memo } from "react";
 import { MainLayout } from "@/components/layout/MainLayout";
-import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
 import { useUserRole } from "@/hooks/useUserRole";
 import { Button } from "@/components/ui/button";
@@ -30,19 +29,24 @@ import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { toast } from "sonner";
+import { supabase } from "@/integrations/supabase/client";
 import {
   useAppointments,
-  useFilteredAppointments,
+  usePatients,
+  type Appointment,
+} from "@/hooks/useQueries";
+import {
   useViewDates,
   useAvailableTimeSlots,
   getPatientDisplay,
   getPatientSubDisplay,
-  type Appointment,
 } from "@/hooks/useAppointments";
 import { PatientSelector } from "@/components/appointments/PatientSelector";
 import { NewPatientDialog } from "@/components/appointments/NewPatientDialog";
+import { AppointmentsPageSkeleton } from "@/components/ui/skeleton-card";
+import { useQueryClient } from "@tanstack/react-query";
 
-interface Patient {
+interface SimplePatient {
   id: string;
   name: string;
   phone: string;
@@ -67,11 +71,11 @@ const statusColors: Record<string, string> = {
 };
 
 // Memoized appointment item for calendar views
-const AppointmentItem = memo(function AppointmentItem({ 
-  apt, 
-  compact = false 
-}: { 
-  apt: Appointment; 
+const AppointmentItem = memo(function AppointmentItem({
+  apt,
+  compact = false,
+}: {
+  apt: Appointment;
   compact?: boolean;
 }) {
   const patientName = getPatientDisplay(apt);
@@ -120,7 +124,12 @@ const DayCard = memo(function DayCard({
   return (
     <Card className={cn("glass-card", isToday && "ring-2 ring-primary")}>
       <CardHeader className="pb-2">
-        <CardTitle className={cn("text-sm font-medium", isToday ? "text-primary" : "text-foreground")}>
+        <CardTitle
+          className={cn(
+            "text-sm font-medium",
+            isToday ? "text-primary" : "text-foreground"
+          )}
+        >
           {format(date, "EEE, MMM d")}
         </CardTitle>
       </CardHeader>
@@ -152,7 +161,12 @@ const MonthCell = memo(function MonthCell({
         isToday && "bg-primary/10 border-primary"
       )}
     >
-      <p className={cn("text-sm font-medium", isToday ? "text-primary" : "text-foreground")}>
+      <p
+        className={cn(
+          "text-sm font-medium",
+          isToday ? "text-primary" : "text-foreground"
+        )}
+      >
         {format(date, "d")}
       </p>
       {appointments.slice(0, 2).map((apt) => (
@@ -168,9 +182,9 @@ const MonthCell = memo(function MonthCell({
 });
 
 // Memoized mobile list item
-const MobileAppointmentItem = memo(function MobileAppointmentItem({ 
-  apt 
-}: { 
+const MobileAppointmentItem = memo(function MobileAppointmentItem({
+  apt,
+}: {
   apt: Appointment;
 }) {
   const patientName = getPatientDisplay(apt);
@@ -200,8 +214,15 @@ const MobileAppointmentItem = memo(function MobileAppointmentItem({
 const Appointments = () => {
   const { user } = useAuth();
   const { isDoctor } = useUserRole();
-  const { appointments, loading, refetch } = useAppointments({ userId: user?.id, isDoctor });
-  const [patients, setPatients] = useState<Patient[]>([]);
+  const queryClient = useQueryClient();
+
+  // React Query for data with automatic caching
+  const { data: appointments = [], isLoading: appointmentsLoading } = useAppointments(
+    user?.id,
+    isDoctor
+  );
+  const { data: patientsData = [], isLoading: patientsLoading } = usePatients();
+
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [isNewPatientDialogOpen, setIsNewPatientDialogOpen] = useState(false);
   const [selectedDate, setSelectedDate] = useState<Date>(new Date());
@@ -217,10 +238,34 @@ const Appointments = () => {
     notes: "",
   });
 
+  // Transform patients for selector
+  const patients: SimplePatient[] = useMemo(
+    () =>
+      patientsData.map((p) => ({
+        id: p.id,
+        name: p.name,
+        phone: p.phone,
+        email: p.email || undefined,
+      })),
+    [patientsData]
+  );
+
   // Use custom hooks
-  const filteredAppointments = useFilteredAppointments(appointments, searchQuery);
   const viewDates = useViewDates(selectedDate, viewMode);
   const availableTimeSlots = useAvailableTimeSlots(formData.date);
+
+  // Filter appointments by search
+  const filteredAppointments = useMemo(
+    () =>
+      appointments.filter(
+        (apt) =>
+          apt.patients?.name?.toLowerCase().includes(searchQuery.toLowerCase()) ||
+          apt.patients?.phone?.includes(searchQuery) ||
+          apt.family_members?.name?.toLowerCase().includes(searchQuery.toLowerCase()) ||
+          apt.type.toLowerCase().includes(searchQuery.toLowerCase())
+      ),
+    [appointments, searchQuery]
+  );
 
   // Memoized appointments by date map
   const appointmentsByDate = useMemo(() => {
@@ -236,27 +281,6 @@ const Appointments = () => {
     (date: Date) => appointmentsByDate.get(format(date, "yyyy-MM-dd")) || [],
     [appointmentsByDate]
   );
-
-  // Fetch patients
-  useEffect(() => {
-    if (user && isDoctor) {
-      fetchPatients();
-    }
-  }, [user, isDoctor]);
-
-  const fetchPatients = useCallback(async () => {
-    try {
-      const { data, error } = await supabase
-        .from("patients")
-        .select("id, name, phone, email")
-        .order("name");
-
-      if (error) throw error;
-      setPatients(data || []);
-    } catch (error) {
-      console.error("Error fetching patients:", error);
-    }
-  }, []);
 
   const handleSubmit = useCallback(async () => {
     if (!formData.patientId || !user) return;
@@ -294,19 +318,20 @@ const Appointments = () => {
         duration: 30,
         notes: "",
       });
-      refetch();
+      // Invalidate and refetch appointments
+      queryClient.invalidateQueries({ queryKey: ["appointments"] });
     } catch (error) {
       console.error("Error creating appointment:", error);
       toast.error("Failed to schedule appointment");
     }
-  }, [formData, user, refetch]);
+  }, [formData, user, queryClient]);
 
   const handlePatientCreated = useCallback(
-    (patient: Patient) => {
-      setPatients((prev) => [...prev, patient]);
+    (patient: SimplePatient) => {
+      queryClient.invalidateQueries({ queryKey: ["patients"] });
       setFormData((prev) => ({ ...prev, patientId: patient.id }));
     },
-    []
+    [queryClient]
   );
 
   const handlePatientSelect = useCallback((patientId: string) => {
@@ -344,12 +369,10 @@ const Appointments = () => {
     [viewMode]
   );
 
-  if (loading) {
+  if (appointmentsLoading || patientsLoading) {
     return (
       <MainLayout>
-        <div className="flex items-center justify-center h-64">
-          <div className="h-8 w-8 animate-spin rounded-full border-4 border-primary border-t-transparent" />
-        </div>
+        <AppointmentsPageSkeleton />
       </MainLayout>
     );
   }
@@ -430,7 +453,9 @@ const Appointments = () => {
                       <Label>Time</Label>
                       <Select
                         value={formData.time}
-                        onValueChange={(value) => setFormData((prev) => ({ ...prev, time: value }))}
+                        onValueChange={(value) =>
+                          setFormData((prev) => ({ ...prev, time: value }))
+                        }
                       >
                         <SelectTrigger>
                           <SelectValue placeholder="Select time" />
@@ -477,7 +502,9 @@ const Appointments = () => {
                     <Label>Type</Label>
                     <Select
                       value={formData.type}
-                      onValueChange={(value) => setFormData((prev) => ({ ...prev, type: value }))}
+                      onValueChange={(value) =>
+                        setFormData((prev) => ({ ...prev, type: value }))
+                      }
                     >
                       <SelectTrigger>
                         <SelectValue />
@@ -498,7 +525,9 @@ const Appointments = () => {
                     <Textarea
                       placeholder="Add any notes..."
                       value={formData.notes}
-                      onChange={(e) => setFormData((prev) => ({ ...prev, notes: e.target.value }))}
+                      onChange={(e) =>
+                        setFormData((prev) => ({ ...prev, notes: e.target.value }))
+                      }
                       maxLength={1000}
                     />
                     <p className="text-xs text-muted-foreground text-right">
@@ -564,7 +593,10 @@ const Appointments = () => {
               {/* Desktop Month View */}
               <div className="hidden md:grid grid-cols-7 gap-2">
                 {["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"].map((day) => (
-                  <div key={day} className="text-center text-sm font-medium text-muted-foreground py-2">
+                  <div
+                    key={day}
+                    className="text-center text-sm font-medium text-muted-foreground py-2"
+                  >
                     {day}
                   </div>
                 ))}
@@ -587,7 +619,10 @@ const Appointments = () => {
                     const isToday = isSameDay(date, new Date());
 
                     return (
-                      <Card key={date.toISOString()} className={cn("p-3", isToday && "ring-2 ring-primary")}>
+                      <Card
+                        key={date.toISOString()}
+                        className={cn("p-3", isToday && "ring-2 ring-primary")}
+                      >
                         <p className={cn("font-medium mb-2", isToday && "text-primary")}>
                           {format(date, "EEE, MMM d")}
                         </p>
@@ -599,8 +634,11 @@ const Appointments = () => {
                       </Card>
                     );
                   })}
-                {viewDates.filter((date) => getAppointmentsForDate(date).length > 0).length === 0 && (
-                  <p className="text-center text-muted-foreground py-8">No appointments this month</p>
+                {viewDates.filter((date) => getAppointmentsForDate(date).length > 0).length ===
+                  0 && (
+                  <p className="text-center text-muted-foreground py-8">
+                    No appointments this month
+                  </p>
                 )}
               </div>
             </CardContent>
@@ -626,7 +664,10 @@ const Appointments = () => {
                 const isToday = isSameDay(date, new Date());
 
                 return (
-                  <Card key={date.toISOString()} className={cn("p-3", isToday && "ring-2 ring-primary")}>
+                  <Card
+                    key={date.toISOString()}
+                    className={cn("p-3", isToday && "ring-2 ring-primary")}
+                  >
                     <p className={cn("font-medium mb-2", isToday && "text-primary")}>
                       {format(date, "EEEE, MMM d")}
                     </p>

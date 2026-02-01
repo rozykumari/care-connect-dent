@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback, useMemo, memo, CSSProperties } from "react";
+import { useState, useCallback, useMemo, memo } from "react";
 import { MainLayout } from "@/components/layout/MainLayout";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
@@ -28,22 +28,11 @@ import {
 } from "@/components/ui/alert-dialog";
 import { toast } from "sonner";
 import { formatAge } from "@/lib/helpers";
-import { PageSkeleton } from "@/components/ui/skeleton-card";
+import { PatientsPageSkeleton } from "@/components/ui/skeleton-card";
 import { PatientMedicalRecords } from "@/components/PatientMedicalRecords";
 import { PatientPrescriptionManager } from "@/components/PatientPrescriptionManager";
 import { VirtualizedTable, VirtualizedList } from "@/components/ui/virtualized-table";
-interface Patient {
-  id: string;
-  name: string;
-  email: string | null;
-  phone: string;
-  date_of_birth: string | null;
-  address: string | null;
-  medical_history: string | null;
-  allergies: string | null;
-  created_at: string;
-  user_id: string | null;
-}
+import { usePatients, usePatientDues, useCreatePatient, useUpdatePatient, useDeletePatient, type Patient } from "@/hooks/useQueries";
 
 interface PatientDue {
   patient_id: string;
@@ -52,9 +41,13 @@ interface PatientDue {
 }
 
 const Patients = () => {
-  const [patients, setPatients] = useState<Patient[]>([]);
-  const [patientDues, setPatientDues] = useState<Map<string, PatientDue>>(new Map());
-  const [loading, setLoading] = useState(true);
+  // React Query hooks with automatic caching and background refetching
+  const { data: patients = [], isLoading: patientsLoading } = usePatients();
+  const { data: patientDues = new Map<string, PatientDue>(), isLoading: duesLoading } = usePatientDues();
+  const createPatientMutation = useCreatePatient();
+  const updatePatientMutation = useUpdatePatient();
+  const deletePatientMutation = useDeletePatient();
+
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [searchQuery, setSearchQuery] = useState("");
   const [editingPatient, setEditingPatient] = useState<Patient | null>(null);
@@ -73,53 +66,9 @@ const Patients = () => {
     allergies: "",
   });
 
-  useEffect(() => {
-    fetchPatients();
-  }, []);
+  const loading = patientsLoading || duesLoading;
 
-  const fetchPatients = useCallback(async () => {
-    try {
-      const [patientsRes, paymentsRes] = await Promise.all([
-        supabase
-          .from("patients")
-          .select("*")
-          .order("created_at", { ascending: false }),
-        supabase
-          .from("payments")
-          .select("patient_id, balance_amount, due_date")
-          .gt("balance_amount", 0)
-          .eq("status", "partial")
-      ]);
-
-      if (patientsRes.error) throw patientsRes.error;
-      setPatients(patientsRes.data || []);
-
-      // Build dues map (aggregate by patient)
-      const duesMap = new Map<string, PatientDue>();
-      paymentsRes.data?.forEach(payment => {
-        const existing = duesMap.get(payment.patient_id);
-        if (existing) {
-          existing.balance_amount += Number(payment.balance_amount);
-          // Keep earliest due date
-          if (payment.due_date && (!existing.due_date || payment.due_date < existing.due_date)) {
-            existing.due_date = payment.due_date;
-          }
-        } else {
-          duesMap.set(payment.patient_id, {
-            patient_id: payment.patient_id,
-            balance_amount: Number(payment.balance_amount),
-            due_date: payment.due_date
-          });
-        }
-      });
-      setPatientDues(duesMap);
-    } catch (error) {
-      console.error("Error fetching patients:", error);
-      toast.error("Failed to load patients");
-    } finally {
-      setLoading(false);
-    }
-  }, []);
+  const resetForm = useCallback(() => {
 
   const resetForm = useCallback(() => {
     setFormData({
@@ -164,11 +113,10 @@ const Patients = () => {
 
     try {
       // Check if phone already exists (for new patients or if phone changed)
-      const phoneToCheck = trimmedPhone;
       const { data: existingPatient } = await supabase
         .from("patients")
         .select("id")
-        .eq("phone", phoneToCheck)
+        .eq("phone", trimmedPhone)
         .neq("id", editingPatient?.id || "")
         .maybeSingle();
 
@@ -177,43 +125,27 @@ const Patients = () => {
         return;
       }
 
+      const patientData = {
+        name: trimmedName,
+        email: formData.email.trim() || null,
+        phone: trimmedPhone,
+        date_of_birth: formData.date_of_birth || null,
+        address: formData.address.trim() || null,
+        medical_history: formData.medical_history.trim() || null,
+        allergies: formData.allergies.trim() || null,
+      };
+
       if (editingPatient) {
-        const { error } = await supabase
-          .from("patients")
-          .update({
-            name: trimmedName,
-            email: formData.email.trim() || null,
-            phone: trimmedPhone,
-            date_of_birth: formData.date_of_birth || null,
-            address: formData.address.trim() || null,
-            medical_history: formData.medical_history.trim() || null,
-            allergies: formData.allergies.trim() || null,
-          })
-          .eq("id", editingPatient.id);
-
-        if (error) throw error;
-        toast.success("Patient updated successfully");
+        await updatePatientMutation.mutateAsync({ id: editingPatient.id, ...patientData });
       } else {
-        const { error } = await supabase.from("patients").insert({
-          name: trimmedName,
-          email: formData.email.trim() || null,
-          phone: trimmedPhone,
-          date_of_birth: formData.date_of_birth || null,
-          address: formData.address.trim() || null,
-          medical_history: formData.medical_history.trim() || null,
-          allergies: formData.allergies.trim() || null,
-        });
-
-        if (error) throw error;
-        toast.success("Patient added successfully");
+        await createPatientMutation.mutateAsync(patientData);
       }
 
       setIsDialogOpen(false);
       resetForm();
-      fetchPatients();
     } catch (error) {
+      // Error handling is done in the mutation hooks
       console.error("Error saving patient:", error);
-      toast.error("Failed to save patient");
     }
   };
 
@@ -233,24 +165,14 @@ const Patients = () => {
 
   const handleDelete = async () => {
     if (!deleteId) return;
-
-    try {
-      const { error } = await supabase.from("patients").delete().eq("id", deleteId);
-      if (error) throw error;
-
-      toast.success("Patient deleted successfully");
-      setDeleteId(null);
-      fetchPatients();
-    } catch (error) {
-      console.error("Error deleting patient:", error);
-      toast.error("Failed to delete patient");
-    }
+    await deletePatientMutation.mutateAsync(deleteId);
+    setDeleteId(null);
   };
 
   if (loading) {
     return (
       <MainLayout>
-        <PageSkeleton />
+        <PatientsPageSkeleton />
       </MainLayout>
     );
   }

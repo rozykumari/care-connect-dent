@@ -1,12 +1,12 @@
-import { useState, useEffect, memo, useCallback } from "react";
+import { memo } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { supabase } from "@/integrations/supabase/client";
 import { format } from "date-fns";
 import { Clock, User } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { ListCardSkeleton } from "@/components/ui/skeleton-card";
 import { formatAge } from "@/lib/helpers";
+import { useAppointmentsByDate } from "@/hooks/useQueries";
 
 interface Appointment {
   id: string;
@@ -32,10 +32,10 @@ const statusColors: Record<string, string> = {
 };
 
 const AppointmentItem = memo(function AppointmentItem({ apt }: { apt: Appointment }) {
-  const patientName = apt.family_members 
+  const patientName = apt.family_members
     ? `${apt.family_members.name} (${apt.family_members.relationship})`
     : apt.patients?.name || "Unknown";
-  
+
   const dateOfBirth = apt.family_members?.date_of_birth || apt.patients?.date_of_birth;
   const age = dateOfBirth ? formatAge(dateOfBirth) : null;
 
@@ -69,44 +69,16 @@ interface TodayAppointmentsProps {
   selectedDate?: Date;
 }
 
-export const TodayAppointments = memo(function TodayAppointments({ selectedDate }: TodayAppointmentsProps) {
-  const [appointments, setAppointments] = useState<Appointment[]>([]);
-  const [loading, setLoading] = useState(true);
-  
+export const TodayAppointments = memo(function TodayAppointments({
+  selectedDate,
+}: TodayAppointmentsProps) {
   const dateToFetch = selectedDate || new Date();
   const isToday = format(dateToFetch, "yyyy-MM-dd") === format(new Date(), "yyyy-MM-dd");
 
-  const fetchAppointments = useCallback(async () => {
-    try {
-      setLoading(true);
-      const dateStr = format(dateToFetch, "yyyy-MM-dd");
-      
-      const { data, error } = await supabase
-        .from("appointments")
-        .select(`
-          id, time, type, status,
-          patients(name, date_of_birth),
-          family_members(name, relationship, date_of_birth)
-        `)
-        .eq("date", dateStr)
-        .order("time", { ascending: true })
-        .limit(10);
+  const { data: appointments, isLoading } = useAppointmentsByDate(dateToFetch);
 
-      if (error) throw error;
-      setAppointments(data || []);
-    } catch (error) {
-      console.error("Error fetching appointments:", error);
-    } finally {
-      setLoading(false);
-    }
-  }, [dateToFetch]);
-
-  useEffect(() => {
-    fetchAppointments();
-  }, [fetchAppointments]);
-
-  if (loading) {
-    return <ListCardSkeleton />;
+  if (isLoading) {
+    return <ListCardSkeleton items={5} />;
   }
 
   const title = isToday ? "Today's Appointments" : `Appointments - ${format(dateToFetch, "MMM d")}`;
@@ -120,14 +92,14 @@ export const TodayAppointments = memo(function TodayAppointments({ selectedDate 
         </CardTitle>
       </CardHeader>
       <CardContent>
-        {appointments.length === 0 ? (
+        {!appointments || appointments.length === 0 ? (
           <p className="text-muted-foreground text-center py-8">
             No appointments scheduled for {isToday ? "today" : format(dateToFetch, "MMM d, yyyy")}
           </p>
         ) : (
           <div className="space-y-3">
             {appointments.map((apt) => (
-              <AppointmentItem key={apt.id} apt={apt} />
+              <AppointmentItem key={apt.id} apt={apt as Appointment} />
             ))}
           </div>
         )}

@@ -1,10 +1,10 @@
-import { useState, useEffect, memo, useCallback } from "react";
+import { memo } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { supabase } from "@/integrations/supabase/client";
 import { Users, Phone, Mail } from "lucide-react";
 import { format } from "date-fns";
 import { ListCardSkeleton } from "@/components/ui/skeleton-card";
 import { formatAge } from "@/lib/helpers";
+import { useRecentPatients } from "@/hooks/useQueries";
 
 interface Patient {
   id: string;
@@ -17,7 +17,7 @@ interface Patient {
 
 const PatientItem = memo(function PatientItem({ patient }: { patient: Patient }) {
   const age = patient.date_of_birth ? formatAge(patient.date_of_birth) : null;
-  
+
   return (
     <div className="p-4 rounded-lg bg-secondary/50 hover:bg-secondary transition-colors">
       <div className="flex items-center justify-between mb-2">
@@ -46,32 +46,10 @@ const PatientItem = memo(function PatientItem({ patient }: { patient: Patient })
 });
 
 export const RecentPatients = memo(function RecentPatients() {
-  const [patients, setPatients] = useState<Patient[]>([]);
-  const [loading, setLoading] = useState(true);
+  const { data: patients, isLoading } = useRecentPatients(5);
 
-  const fetchRecentPatients = useCallback(async () => {
-    try {
-      const { data, error } = await supabase
-        .from("patients")
-        .select("id, name, phone, email, date_of_birth, created_at")
-        .order("created_at", { ascending: false })
-        .limit(5);
-
-      if (error) throw error;
-      setPatients(data || []);
-    } catch (error) {
-      console.error("Error fetching recent patients:", error);
-    } finally {
-      setLoading(false);
-    }
-  }, []);
-
-  useEffect(() => {
-    fetchRecentPatients();
-  }, [fetchRecentPatients]);
-
-  if (loading) {
-    return <ListCardSkeleton />;
+  if (isLoading) {
+    return <ListCardSkeleton items={5} />;
   }
 
   return (
@@ -83,7 +61,7 @@ export const RecentPatients = memo(function RecentPatients() {
         </CardTitle>
       </CardHeader>
       <CardContent>
-        {patients.length === 0 ? (
+        {!patients || patients.length === 0 ? (
           <p className="text-muted-foreground text-center py-8">
             No patients registered yet
           </p>

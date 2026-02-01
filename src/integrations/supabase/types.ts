@@ -494,6 +494,19 @@ export type Database = {
         }
         Returns: string
       }
+      doctor_update_patient: {
+        Args: {
+          p_address?: string
+          p_allergies?: string
+          p_date_of_birth?: string
+          p_email?: string
+          p_medical_history?: string
+          p_name: string
+          p_patient_id: string
+          p_phone: string
+        }
+        Returns: boolean
+      }
       get_doctor_availability: {
         Args: never
         Returns: {
@@ -504,12 +517,28 @@ export type Database = {
           start_time: string
         }[]
       }
+      has_active_treatment_relationship: {
+        Args: { _doctor_id: string; _patient_id: string }
+        Returns: boolean
+      }
       has_role: {
         Args: {
           _role: Database["public"]["Enums"]["app_role"]
           _user_id: string
         }
         Returns: boolean
+      }
+      insert_patient: {
+        Args: {
+          p_address?: string
+          p_allergies?: string
+          p_date_of_birth?: string
+          p_email?: string
+          p_medical_history?: string
+          p_name: string
+          p_phone: string
+        }
+        Returns: string
       }
       update_patient_profile: {
         Args: {

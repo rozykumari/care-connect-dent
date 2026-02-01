@@ -3,12 +3,20 @@ import { Button } from "@/components/ui/button";
 import { useEffect, useState } from "react";
 
 export function ThemeToggle() {
-  const [isDark, setIsDark] = useState(true);
+  const [isDark, setIsDark] = useState(false);
 
   useEffect(() => {
-    // Check initial theme from document
-    const isDarkMode = document.documentElement.classList.contains("dark");
+    // Check initial theme from localStorage or system preference
+    const savedTheme = localStorage.getItem("theme");
+    const prefersDark = window.matchMedia("(prefers-color-scheme: dark)").matches;
+    const isDarkMode = savedTheme === "dark" || (!savedTheme && prefersDark);
+    
     setIsDark(isDarkMode);
+    if (isDarkMode) {
+      document.documentElement.classList.add("dark");
+    } else {
+      document.documentElement.classList.remove("dark");
+    }
   }, []);
 
   const toggleTheme = () => {
@@ -29,7 +37,7 @@ export function ThemeToggle() {
       variant="ghost"
       size="icon"
       onClick={toggleTheme}
-      className="h-8 w-8 text-muted-foreground hover:text-foreground transition-colors"
+      className="h-9 w-9"
     >
       {isDark ? (
         <Sun className="h-4 w-4" />

@@ -22,25 +22,25 @@ export const StatsCard = memo(function StatsCard({
 }: StatsCardProps) {
   return (
     <div className={cn(
-      "glass-card rounded-xl p-6",
+      "bg-card rounded-xl border border-border p-6 shadow-soft",
       className
     )}>
       <div className="flex items-start justify-between">
-        <div>
-          <p className="text-sm text-muted-foreground mb-1">{title}</p>
-          <p className="text-3xl font-bold text-foreground">{value}</p>
+        <div className="space-y-1">
+          <p className="text-sm font-medium text-muted-foreground">{title}</p>
+          <p className="text-3xl font-bold text-foreground tracking-tight">{value}</p>
           {trend && (
             <p className={cn(
-              "text-sm mt-2 flex items-center gap-1",
+              "text-sm flex items-center gap-1 pt-1",
               trend.isPositive ? "text-success" : "text-destructive"
             )}>
-              {trend.isPositive ? "↑" : "↓"} {Math.abs(trend.value)}%
-              <span className="text-muted-foreground">vs last month</span>
+              <span className="font-medium">{trend.isPositive ? "↑" : "↓"} {Math.abs(trend.value)}%</span>
+              <span className="text-muted-foreground font-normal">vs last period</span>
             </p>
           )}
         </div>
-        <div className="p-3 rounded-lg gradient-primary">
-          <Icon className="h-6 w-6 text-primary-foreground" />
+        <div className="p-3 rounded-xl bg-primary/10">
+          <Icon className="h-6 w-6 text-primary" />
         </div>
       </div>
     </div>

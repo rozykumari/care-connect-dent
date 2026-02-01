@@ -26,21 +26,29 @@ export const MainLayout = memo(function MainLayout({
       <div className="min-h-screen flex w-full bg-background print:block print:min-h-0">
         <AppSidebar />
         <main className="flex-1 overflow-auto flex flex-col print:overflow-visible">
-          {/* Header with sidebar trigger - hidden on print */}
-          <header className="sticky top-0 z-40 flex h-14 items-center gap-4 border-b border-border/50 bg-background/80 backdrop-blur-xl px-4 print:hidden">
-            <SidebarTrigger className="h-8 w-8 text-muted-foreground hover:text-foreground transition-colors">
+          {/* Header */}
+          <header className="sticky top-0 z-40 flex h-16 items-center gap-4 border-b border-border bg-background/95 backdrop-blur-md px-4 lg:px-6 print:hidden">
+            <SidebarTrigger className="h-9 w-9 flex items-center justify-center rounded-lg text-muted-foreground hover:text-foreground hover:bg-accent transition-colors">
               <Menu className="h-5 w-5" />
             </SidebarTrigger>
-            <div className="flex-1">
-              <span className="font-display font-semibold text-foreground tracking-tight">DentaCare</span>
-              <span className="hidden sm:inline text-muted-foreground text-sm ml-2">|</span>
-              <span className="hidden sm:inline text-muted-foreground text-xs ml-2 uppercase tracking-widest">Precision Medicine</span>
+            
+            <div className="flex-1 flex items-center gap-3">
+              <div className="hidden sm:flex items-center gap-2">
+                <div className="h-8 w-8 rounded-lg bg-primary flex items-center justify-center">
+                  <span className="text-primary-foreground font-bold text-sm">D</span>
+                </div>
+                <div>
+                  <span className="font-semibold text-foreground">DentaCare</span>
+                  <span className="hidden md:inline text-muted-foreground text-xs ml-2">Dental Clinic</span>
+                </div>
+              </div>
             </div>
-            <div className="flex items-center gap-1">
+
+            <div className="flex items-center gap-2">
               <ThemeToggle />
               {isPatient && (
                 <Link to="/profile">
-                  <Button variant="ghost" size="icon" className="h-8 w-8 text-muted-foreground hover:text-foreground hover:bg-primary/10 transition-colors">
+                  <Button variant="ghost" size="icon" className="h-9 w-9">
                     <User className="h-4 w-4" />
                   </Button>
                 </Link>
@@ -49,7 +57,7 @@ export const MainLayout = memo(function MainLayout({
                 <Button 
                   variant="ghost" 
                   size="icon" 
-                  className="h-8 w-8 text-muted-foreground hover:text-destructive hover:bg-destructive/10 transition-colors" 
+                  className="h-9 w-9 text-muted-foreground hover:text-destructive" 
                   onClick={signOut}
                 >
                   <LogOut className="h-4 w-4" />
@@ -57,9 +65,12 @@ export const MainLayout = memo(function MainLayout({
               )}
             </div>
           </header>
-          <div className="container mx-auto p-4 md:p-6 max-w-7xl flex-1 print:p-0 print:max-w-none">
-            {showBreadcrumb && <Breadcrumb />}
-            {children}
+
+          <div className="flex-1 p-4 lg:p-8 print:p-0">
+            <div className="mx-auto max-w-7xl animate-fade-in">
+              {showBreadcrumb && <Breadcrumb />}
+              {children}
+            </div>
           </div>
         </main>
       </div>

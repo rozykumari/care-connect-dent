@@ -45,7 +45,7 @@ const patientMenuItems = [
 ];
 
 export function AppSidebar() {
-  const { state, toggleSidebar, setOpenMobile } = useSidebar();
+  const { state, setOpenMobile } = useSidebar();
   const { isDoctor, isPatient, loading } = useUserRole();
   const { user, signOut } = useAuth();
   const isCollapsed = state === "collapsed";
@@ -53,44 +53,47 @@ export function AppSidebar() {
   const menuItems = isDoctor ? doctorMenuItems : isPatient ? patientMenuItems : [];
 
   const handleNavClick = () => {
-    // Close mobile sidebar when navigating
     setOpenMobile(false);
   };
 
   return (
     <Sidebar
       className={cn(
-        "border-r border-sidebar-border bg-sidebar transition-all duration-300 print:hidden",
-        "titanium-texture"
+        "border-r border-border bg-sidebar transition-all duration-300 print:hidden"
       )}
       collapsible="icon"
     >
-      <SidebarHeader className="p-4 border-b border-sidebar-border/50">
+      <SidebarHeader className="p-4 border-b border-border">
         <div className="flex items-center gap-3">
-          <div className="w-9 h-9 rounded-lg gradient-sapphire flex items-center justify-center flex-shrink-0 glow-sapphire-subtle">
-            <span className="text-primary-foreground font-bold text-sm tracking-tight">DC</span>
+          <div className="w-10 h-10 rounded-xl bg-primary flex items-center justify-center flex-shrink-0 shadow-sm">
+            <span className="text-primary-foreground font-bold text-base">D</span>
           </div>
           {!isCollapsed && (
-            <div>
-              <h1 className="font-display font-semibold text-sidebar-foreground tracking-tight">DentaCare</h1>
-              <p className="text-[10px] uppercase tracking-widest text-muted-foreground">
-                {isDoctor ? "Physician Portal" : "Patient Portal"}
+            <div className="overflow-hidden">
+              <h1 className="font-semibold text-sidebar-foreground truncate">DentaCare</h1>
+              <p className="text-xs text-muted-foreground truncate">
+                {isDoctor ? "Doctor Portal" : "Patient Portal"}
               </p>
             </div>
           )}
         </div>
       </SidebarHeader>
 
-      <SidebarContent className="py-4">
+      <SidebarContent className="py-4 px-2">
         <SidebarGroup>
-          <SidebarGroupLabel className={cn("text-[10px] uppercase tracking-widest text-muted-foreground", isCollapsed && "sr-only")}>
+          <SidebarGroupLabel className={cn(
+            "text-xs font-medium text-muted-foreground px-2 mb-2",
+            isCollapsed && "sr-only"
+          )}>
             {isDoctor ? "Navigation" : "Menu"}
           </SidebarGroupLabel>
           <SidebarGroupContent>
-            <SidebarMenu>
+            <SidebarMenu className="space-y-1">
               {loading ? (
-                <div className="px-3 py-2">
-                  <div className="h-8 bg-muted/50 rounded animate-pulse" />
+                <div className="px-2 py-2 space-y-2">
+                  {[1, 2, 3].map((i) => (
+                    <div key={i} className="h-10 bg-muted rounded-lg animate-pulse" />
+                  ))}
                 </div>
               ) : (
                 menuItems.map((item) => (
@@ -101,15 +104,14 @@ export function AppSidebar() {
                         end={item.url === "/" || item.url === "/doctor"}
                         onClick={handleNavClick}
                         className={cn(
-                          "flex items-center gap-3 px-3 py-2.5 rounded-md transition-all duration-200",
-                          "text-sidebar-foreground/80 hover:text-sidebar-foreground hover:bg-sidebar-accent",
-                          "border border-transparent hover:border-border/30",
+                          "flex items-center gap-3 px-3 py-2.5 rounded-lg transition-all duration-200",
+                          "text-sidebar-foreground/70 hover:text-sidebar-foreground hover:bg-sidebar-accent",
                           isCollapsed && "justify-center px-2"
                         )}
-                        activeClassName="bg-primary/10 text-primary border-primary/20 hover:bg-primary/15"
+                        activeClassName="bg-primary/10 text-primary font-medium"
                       >
-                        <item.icon className="h-4 w-4 flex-shrink-0" />
-                        {!isCollapsed && <span className="text-sm font-medium">{item.title}</span>}
+                        <item.icon className="h-5 w-5 flex-shrink-0" />
+                        {!isCollapsed && <span className="text-sm">{item.title}</span>}
                       </NavLink>
                     </SidebarMenuButton>
                   </SidebarMenuItem>
@@ -120,20 +122,20 @@ export function AppSidebar() {
         </SidebarGroup>
       </SidebarContent>
 
-      <SidebarFooter className="p-4 border-t border-sidebar-border/50">
+      <SidebarFooter className="p-4 border-t border-border">
         {user && (
           <div className={cn("space-y-3", isCollapsed && "flex flex-col items-center")}>
             {!isCollapsed && (
-              <p className="text-[11px] text-muted-foreground truncate font-medium">
-                {user.email}
-              </p>
+              <div className="px-1">
+                <p className="text-xs text-muted-foreground truncate">{user.email}</p>
+              </div>
             )}
             <Button
               variant="ghost"
               size={isCollapsed ? "icon" : "sm"}
               onClick={signOut}
               className={cn(
-                "text-muted-foreground hover:text-foreground hover:bg-destructive/10 transition-colors",
+                "text-muted-foreground hover:text-destructive hover:bg-destructive/10",
                 !isCollapsed && "w-full justify-start"
               )}
             >
@@ -143,8 +145,8 @@ export function AppSidebar() {
           </div>
         )}
         {!isCollapsed && (
-          <div className="mt-4 pt-3 border-t border-sidebar-border/30">
-            <p className="text-[10px] text-muted-foreground/60 text-center uppercase tracking-widest">
+          <div className="mt-4 pt-3 border-t border-border">
+            <p className="text-xs text-muted-foreground/60 text-center">
               © 2024 DentaCare
             </p>
           </div>

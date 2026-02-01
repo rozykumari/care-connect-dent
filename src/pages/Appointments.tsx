@@ -352,7 +352,7 @@ const Appointments = () => {
 
             <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
               <DialogTrigger asChild>
-                <Button className="gradient-primary w-full sm:w-auto">
+                <Button className="w-full sm:w-auto">
                   <Plus className="h-4 w-4 mr-2" />
                   New Appointment
                 </Button>

@@ -166,23 +166,38 @@ export function useCreatePatient() {
 
   return useMutation({
     mutationFn: async (patientData: CreatePatientInput) => {
-      const { data, error } = await supabase
-        .from("patients")
-        .insert(patientData)
-        .select()
-        .single();
+      // Use server-side validated RPC function
+      const { data, error } = await supabase.rpc("insert_patient", {
+        p_name: patientData.name,
+        p_phone: patientData.phone,
+        p_email: patientData.email || null,
+        p_date_of_birth: patientData.date_of_birth || null,
+        p_address: patientData.address || null,
+        p_medical_history: patientData.medical_history || null,
+        p_allergies: patientData.allergies || null,
+      });
 
       if (error) throw error;
-      return data as Patient;
+      
+      // Fetch the created patient
+      const { data: patient, error: fetchError } = await supabase
+        .from("patients")
+        .select("*")
+        .eq("id", data)
+        .single();
+      
+      if (fetchError) throw fetchError;
+      return patient as Patient;
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: queryKeys.patients });
       queryClient.invalidateQueries({ queryKey: queryKeys.recentPatients });
       toast.success("Patient added successfully");
     },
-    onError: (error) => {
+    onError: (error: Error) => {
       console.error("Error creating patient:", error);
-      toast.error("Failed to save patient");
+      // Show specific server-side validation errors
+      toast.error(error.message || "Failed to save patient");
     },
   });
 }
@@ -192,24 +207,39 @@ export function useUpdatePatient() {
 
   return useMutation({
     mutationFn: async ({ id, ...patientData }: Partial<Patient> & { id: string }) => {
-      const { data, error } = await supabase
-        .from("patients")
-        .update(patientData)
-        .eq("id", id)
-        .select()
-        .single();
+      // Use server-side validated RPC function for doctors
+      const { error } = await supabase.rpc("doctor_update_patient", {
+        p_patient_id: id,
+        p_name: patientData.name || "",
+        p_phone: patientData.phone || "",
+        p_email: patientData.email || null,
+        p_date_of_birth: patientData.date_of_birth || null,
+        p_address: patientData.address || null,
+        p_medical_history: patientData.medical_history || null,
+        p_allergies: patientData.allergies || null,
+      });
 
       if (error) throw error;
-      return data as Patient;
+      
+      // Fetch the updated patient
+      const { data: patient, error: fetchError } = await supabase
+        .from("patients")
+        .select("*")
+        .eq("id", id)
+        .single();
+      
+      if (fetchError) throw fetchError;
+      return patient as Patient;
     },
     onSuccess: (data) => {
       queryClient.invalidateQueries({ queryKey: queryKeys.patients });
       queryClient.setQueryData(queryKeys.patient(data.id), data);
       toast.success("Patient updated successfully");
     },
-    onError: (error) => {
+    onError: (error: Error) => {
       console.error("Error updating patient:", error);
-      toast.error("Failed to update patient");
+      // Show specific server-side validation errors
+      toast.error(error.message || "Failed to update patient");
     },
   });
 }
